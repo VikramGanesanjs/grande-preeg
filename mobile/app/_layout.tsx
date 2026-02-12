@@ -33,24 +33,15 @@ export default function RootLayout() {
         <Stack.Screen
           name="index"
           options={{
+            title: 'EEG Games',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="racing"
+          options={{
             title: 'EEG Racing',
             headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="game"
-          options={{
-            title: 'Race',
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="results"
-          options={{
-            title: 'Results',
-            headerShown: false,
-            gestureEnabled: false,
           }}
         />
         <Stack.Screen

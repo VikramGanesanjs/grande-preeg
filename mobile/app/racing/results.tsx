@@ -5,10 +5,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors, typography, spacing, borderRadius } from '../constants/theme';
-import { useGameStore } from '../stores/gameStore';
-import { useSettingsStore } from '../stores/settingsStore';
-import { Button } from '../components/ui';
+import { colors, typography, spacing, borderRadius } from '../../constants/theme';
+import { useGameStore } from '../../stores/gameStore';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { Button } from '../../components/ui';
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -42,10 +42,15 @@ export default function ResultsScreen() {
   
   const handlePlayAgain = () => {
     resetGame();
-    router.replace('/game');
+    router.replace('/racing/game');
   };
   
   const handleGoHome = () => {
+    resetGame();
+    router.replace('/racing');
+  };
+  
+  const handleGoToGames = () => {
     resetGame();
     router.replace('/');
   };
@@ -136,9 +141,16 @@ export default function ResultsScreen() {
             style={styles.button}
           />
           <Button
-            title="Back to Home"
+            title="Back to Racing"
             onPress={handleGoHome}
             variant="outline"
+            size="md"
+            style={styles.button}
+          />
+          <Button
+            title="All Games"
+            onPress={handleGoToGames}
+            variant="ghost"
             size="md"
             style={styles.button}
           />

@@ -3,10 +3,10 @@ import { StyleSheet, View, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { colors } from '../constants/theme';
-import { useGameStore } from '../stores/gameStore';
-import { useSettingsStore } from '../stores/settingsStore';
-import { RaceTrack, ConcentrationMeter, GameHUD, Countdown } from '../components/game';
+import { colors } from '../../constants/theme';
+import { useGameStore } from '../../stores/gameStore';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { RaceTrack, ConcentrationMeter, GameHUD, Countdown } from '../../components/game';
 
 export default function GameScreen() {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function GameScreen() {
     if (status === 'finished') {
       // Small delay for the finish animation
       const timer = setTimeout(() => {
-        router.replace('/results');
+        router.replace('/racing/results');
       }, 500);
       return () => clearTimeout(timer);
     }

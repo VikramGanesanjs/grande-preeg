@@ -1,39 +1,73 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { colors, typography, spacing, borderRadius } from '../constants/theme';
 import { useConnectionStore } from '../stores/connectionStore';
-import { useSettingsStore } from '../stores/settingsStore';
-import { useGameStore } from '../stores/gameStore';
-import { Button, ConnectionStatus } from '../components/ui';
+import { ConnectionStatus } from '../components/ui';
 
-export default function HomeScreen() {
+interface GameCardProps {
+  title: string;
+  subtitle: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  onPress: () => void;
+  delay: number;
+  available: boolean;
+}
+
+function GameCard({ title, subtitle, description, icon, iconColor, onPress, delay, available }: GameCardProps) {
+  return (
+    <Animated.View entering={FadeInUp.delay(delay).duration(500)}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.gameCard,
+          pressed && styles.gameCardPressed,
+          !available && styles.gameCardDisabled,
+        ]}
+        onPress={available ? onPress : undefined}
+        disabled={!available}
+      >
+        <View style={[styles.gameIconContainer, { borderColor: iconColor }]}>
+          <Ionicons name={icon} size={32} color={iconColor} />
+        </View>
+        <View style={styles.gameCardContent}>
+          <View style={styles.gameCardHeader}>
+            <Text style={styles.gameCardTitle}>{title}</Text>
+            {!available && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Coming Soon</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.gameCardSubtitle}>{subtitle}</Text>
+          <Text style={styles.gameCardDescription}>{description}</Text>
+        </View>
+        {available && (
+          <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+export default function GameSelectorScreen() {
   const router = useRouter();
   
   // Connection state
   const connectionStatus = useConnectionStore((state) => state.status);
   const connect = useConnectionStore((state) => state.connect);
   
-  // Settings state
-  const threshold = useSettingsStore((state) => state.concentrationThreshold);
-  
-  // Game store - to set threshold
-  const setGameThreshold = useGameStore((state) => state.setThreshold);
-  
-  const handleStartGame = () => {
-    // Ensure game store has the current threshold
-    setGameThreshold(threshold);
-    router.push('/game');
-  };
-  
   const handleOpenSettings = () => {
     router.push('/settings');
   };
   
-  const isConnected = connectionStatus === 'connected';
+  const handleSelectRacing = () => {
+    router.push('/racing');
+  };
   
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -57,65 +91,68 @@ export default function HomeScreen() {
         </Pressable>
       </Animated.View>
       
-      {/* Main content */}
-      <View style={styles.content}>
-        {/* Logo/Title */}
-        <Animated.View 
-          entering={FadeInUp.delay(200).duration(600)}
-          style={styles.titleContainer}
-        >
-          <View style={styles.logoContainer}>
-            <Ionicons name="flash" size={48} color={colors.primary} />
-          </View>
-          <Text style={styles.title}>EEG Racing</Text>
-          <Text style={styles.subtitle}>Race with your mind</Text>
-        </Animated.View>
+      {/* Title */}
+      <Animated.View 
+        entering={FadeInUp.delay(200).duration(600)}
+        style={styles.titleContainer}
+      >
+        <View style={styles.logoContainer}>
+          <Ionicons name="flash" size={40} color={colors.primary} />
+        </View>
+        <Text style={styles.title}>EEG Games</Text>
+        <Text style={styles.subtitle}>Train your brain with fun games</Text>
+      </Animated.View>
+      
+      {/* Games list */}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <GameCard
+          title="EEG Racing"
+          subtitle="Race with your mind"
+          description="Control your car through mental focus. Build concentration streaks to advance along the track."
+          icon="car-sport"
+          iconColor={colors.primary}
+          onPress={handleSelectRacing}
+          delay={400}
+          available={true}
+        />
         
-        {/* Game mode card */}
-        <Animated.View 
-          entering={FadeInUp.delay(400).duration(600)}
-          style={styles.modeCard}
-        >
-          <View style={styles.modeHeader}>
-            <Ionicons name="person" size={24} color={colors.primary} />
-            <Text style={styles.modeTitle}>Single Player</Text>
-          </View>
-          <Text style={styles.modeDescription}>
-            Race against yourself. Focus your mind to advance your car and complete the track.
-          </Text>
-          <View style={styles.modeStats}>
-            <View style={styles.modeStat}>
-              <Text style={styles.modeStatValue}>{threshold}</Text>
-              <Text style={styles.modeStatLabel}>Focus streak</Text>
-            </View>
-            <View style={styles.modeStat}>
-              <Text style={styles.modeStatValue}>20</Text>
-              <Text style={styles.modeStatLabel}>Track units</Text>
-            </View>
-          </View>
-        </Animated.View>
+        <GameCard
+          title="Focus Flow"
+          subtitle="Rhythm meets mindfulness"
+          description="Match your concentration to the rhythm. Stay focused to keep the flow going."
+          icon="musical-notes"
+          iconColor={colors.secondary}
+          onPress={() => {}}
+          delay={500}
+          available={false}
+        />
         
-        {/* Start button */}
-        <Animated.View 
-          entering={FadeInUp.delay(600).duration(600)}
-          style={styles.buttonContainer}
-        >
-          <Button
-            title={isConnected ? "Start Race" : "Connecting..."}
-            onPress={handleStartGame}
-            variant="primary"
-            size="lg"
-            disabled={!isConnected}
-            style={styles.startButton}
-          />
-          
-          {!isConnected && (
-            <Text style={styles.connectionHint}>
-              Waiting for server connection...
-            </Text>
-          )}
-        </Animated.View>
-      </View>
+        <GameCard
+          title="Mind Garden"
+          subtitle="Grow with your focus"
+          description="Plant and nurture a virtual garden. Your concentration helps your plants flourish."
+          icon="leaf"
+          iconColor={colors.concentrated}
+          onPress={() => {}}
+          delay={600}
+          available={false}
+        />
+        
+        <GameCard
+          title="Zen Puzzle"
+          subtitle="Calm your mind, solve puzzles"
+          description="Relaxing puzzles that respond to your mental state. Focus to reveal solutions."
+          icon="grid"
+          iconColor={colors.warning}
+          onPress={() => {}}
+          delay={700}
+          available={false}
+        />
+      </ScrollView>
       
       {/* Footer */}
       <Animated.View 
@@ -123,7 +160,7 @@ export default function HomeScreen() {
         style={styles.footer}
       >
         <Text style={styles.footerText}>
-          Focus your mind. Control your car. Win the race.
+          Connect your EEG device and start training
         </Text>
       </Animated.View>
     </SafeAreaView>
@@ -153,96 +190,103 @@ const styles = StyleSheet.create({
   settingsButtonPressed: {
     backgroundColor: colors.surfaceLight,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
-  },
   titleContainer: {
     alignItems: 'center',
-    marginBottom: spacing['2xl'],
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 2,
     borderColor: colors.primary,
   },
   title: {
-    fontSize: typography.fontSizes['4xl'],
+    fontSize: typography.fontSizes['3xl'],
     fontWeight: typography.fontWeights.bold,
     color: colors.text,
     marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: typography.fontSizes.lg,
+    fontSize: typography.fontSizes.md,
     color: colors.textSecondary,
   },
-  modeCard: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  gameCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.surfaceLight,
   },
-  modeHeader: {
+  gameCardPressed: {
+    backgroundColor: colors.surfaceLight,
+  },
+  gameCardDisabled: {
+    opacity: 0.6,
+  },
+  gameIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    marginRight: spacing.md,
+  },
+  gameCardContent: {
+    flex: 1,
+  },
+  gameCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: 2,
   },
-  modeTitle: {
-    fontSize: typography.fontSizes.xl,
+  gameCardTitle: {
+    fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.semibold,
     color: colors.text,
   },
-  modeDescription: {
-    fontSize: typography.fontSizes.md,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.md,
-  },
-  modeStats: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  modeStat: {
-    alignItems: 'center',
+  comingSoonBadge: {
     backgroundColor: colors.surfaceLight,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
   },
-  modeStatValue: {
-    fontSize: typography.fontSizes.xl,
-    fontWeight: typography.fontWeights.bold,
-    color: colors.primary,
-  },
-  modeStatLabel: {
+  comingSoonText: {
     fontSize: typography.fontSizes.xs,
     color: colors.textMuted,
+    fontWeight: typography.fontWeights.medium,
   },
-  buttonContainer: {
-    alignItems: 'center',
-  },
-  startButton: {
-    width: '100%',
-    maxWidth: 300,
-  },
-  connectionHint: {
+  gameCardSubtitle: {
     fontSize: typography.fontSizes.sm,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
+    color: colors.primary,
+    marginBottom: spacing.xs,
+  },
+  gameCardDescription: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
   footer: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   footerText: {
