@@ -15,20 +15,25 @@ for trial in range(600):  # ~15 min
     # fixation
     fix.draw()
     win.flip()
-    core.wait(0.5)
 
     # stimulus
-    letter = random.choice(letters)
+
+    x = random.uniform(0, 1)
+
+    prob_threshold = 0.1
+    if x < 0.1: # 30% chance of target
+        letter = 'X'
+    else: 
+        letter = random.choice(letters)
     stim.text = letter
     stim.draw()
     win.flip()
     clock.reset()
 
-    keys = event.waitKeys(maxWait=1.2, keyList=['space'], timeStamped=clock)
-
+    keys = event.waitKeys(maxWait=0.1, keyList=['space'], timeStamped=clock)
     # blank
     win.flip()
-    core.wait(random.uniform(0.75, 1.25))
+    core.wait(random.uniform(0.01, 0.4))
 
     # log trial info
     # (letter, target?, response?, RT)
