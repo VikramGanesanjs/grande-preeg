@@ -2,6 +2,17 @@
 
 An interactive mobile racing game that translates real-time EEG brain concentration data into gameplay mechanics. Players control their racing cars through mental focus, with their concentration levels directly determining vehicle advancement on a 2D racing track.
 
+# For Data Collection
+
+If you have conda:
+conda create -n psychopy python=3.10
+pip install psychopy
+python utils/cpt.py
+
+Otherwise: 
+Download from https://www.psychopy.org/download.html
+
+
 ## Project Structure
 
 ```
