@@ -11,27 +11,27 @@ stim = visual.TextStim(win, text='', color='white', height=0.15)
 fix = visual.TextStim(win, text='+', color='white')
 
 clock = core.Clock()
-
+prevX = False
 for trial in range(600):  # ~5 min
     # fixation
     fix.draw()
     win.flip()
 
     # stimulus
-
     x = random.uniform(0, 1)
 
     prob_threshold = 0.1
-    if x < 0.1: # 30% chance of target
+    if x < prob_threshold and prevX == False: # 30% chance of target
         letter = 'X'
+        prevX = True
     else: 
         letter = random.choice(letters)
     stim.text = letter
     stim.draw()
     win.flip()
     clock.reset()
-    core.wait(random.uniform(0.2, 0.4))
-    keys = event.waitKeys(maxWait=0.3, keyList=['space'], timeStamped=clock)
+    core.wait(random.uniform(0.1, 0.3))
+    keys = event.waitKeys(maxWait=0.15, keyList=['space'], timeStamped=clock)
     # blank
     win.flip()
 

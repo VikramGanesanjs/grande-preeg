@@ -6,11 +6,13 @@ An interactive mobile racing game that translates real-time EEG brain concentrat
 
 If you have conda:
 conda create -n psychopy python=3.10
+conda activate psychopy
 pip install psychopy
 python utils/cpt.py
 
 Otherwise: 
 Download from https://www.psychopy.org/download.html
+Upload script into PychoPy Coder and press run
 
 
 ## Project Structure
