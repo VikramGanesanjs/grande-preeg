@@ -50,13 +50,19 @@ export interface ErrorMessage {
   };
 }
 
+export interface EEGDataMessage {
+  type: 'eeg_data';
+  payload: number[]; // Array of 8 numbers
+}
+
 // Union type for all server messages
 export type ServerMessage =
   | ConcentrationUpdateMessage
   | GameStartedMessage
   | GameEndedMessage
   | PongMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | EEGDataMessage;
 
 // Game results
 export interface GameResults {

@@ -2,7 +2,15 @@ import { io, Socket } from 'socket.io-client';
 import { ServerMessage } from '../types';
 
 // Default server URL (can be changed in settings)
-const DEFAULT_SERVER_URL = 'http://localhost:3001';
+// #const DEFAULT_SERVER_URL = 'http://localhost:3001';
+import Constants from 'expo-constants';
+
+// Grab the Expo bundler's URI (e.g., "192.168.137.1:8081")
+const debuggerHost = Constants.expoConfig?.hostUri;
+
+// Strip the Expo port and attach your Python server's port (5000)
+const computerIp = debuggerHost ? debuggerHost.split(':')[0] : 'localhost';
+const DEFAULT_SERVER_URL = `http://${computerIp}:5000`;
 
 type MessageHandler = (message: ServerMessage) => void;
 type ConnectionHandler = () => void;
@@ -187,6 +195,11 @@ class WebSocketService {
 
     this.socket.on('message', (data: ServerMessage) => {
       this.messageHandlers.forEach((handler) => handler(data));
+    });
+
+    this.socket.on('eeg_data', (payload: { data: number[] }) => {
+      const serverMsg = { type: 'eeg_data', payload: payload.data } as ServerMessage;
+      this.messageHandlers.forEach((handler) => handler(serverMsg));
     });
   }
 
