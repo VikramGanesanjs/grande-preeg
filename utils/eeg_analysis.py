@@ -34,13 +34,13 @@ BANDS = {
     "beta": (13, 30),
     # "gamma": (30, 50),
 }
-CROP_START = 20  # seconds to trim from start
-CROP_END = 10  # seconds to trim from end
-PRE_TASK_DURATION = 90  # seconds (first 90s after crop = pre-task, rest = task)
+CROP_START = 25  # seconds to trim from start
+CROP_END = 160  # seconds to trim from end
+PRE_TASK_DURATION = 60  # seconds (first 90s after crop = pre-task, rest = task)
 NORM_START = 0  # seconds (relative to cropped data)
 NORM_END = 10  # seconds (use 0-10s of cropped segment for normalization)
-WINDOW_LEN = 2.0  # seconds for band power estimation
-WINDOW_STRIDE = 1.0  # seconds between timepoints
+WINDOW_LEN = 0.3  # seconds for band power estimation
+WINDOW_STRIDE = 0.15  # seconds between timepoints
 DROP_CHANNELS = [2, 3]  # channel indices (0-based) to exclude
 
 
@@ -131,7 +131,7 @@ def compute_std_per_epoch(raw: mne.io.Raw) -> np.ndarray:
     return np.std(data, axis=(1, 2))
 
 
-def filter_amplitude_outliers(x: np.ndarray, percentile: float = 90) -> np.ndarray:
+def filter_amplitude_outliers(x: np.ndarray, percentile: float = 95)-> np.ndarray:
     """Replace amplitudes whose absolute value exceeds the given percentile with the previous amplitude."""
     threshold = np.nanpercentile(np.abs(x), percentile)
     out = x.copy().astype(float)
@@ -198,8 +198,8 @@ def main():
         ).ravel()
         band_data_rescaled[band_name] = filter_amplitude_outliers(rescaled)
 
-    # Filter epoch std outliers
-    epoch_std = filter_amplitude_outliers(epoch_std)
+    # # Filter epoch std outliers
+    # epoch_std = filter_amplitude_outliers(epoch_std)
 
     frequency_map = [
         ((name, band[0], band[1]), band_data_rescaled[name])

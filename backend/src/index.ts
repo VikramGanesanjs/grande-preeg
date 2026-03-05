@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { setupGameHandlers } from './handlers/gameHandler';
 import { signalGenerator, SignalGenerator, SignalMode } from './services/signalGenerator';
+import { lslService } from './services/lslService';
 
 const PORT = process.env.PORT || 3001;
 
@@ -30,7 +31,7 @@ app.get('/api/signal-mode', (req, res) => {
 });
 
 // Set signal mode
-app.post('/api/signal-mode', (req, res) => {
+app.post('/api/signal-mode', async (req, res) => {
   const { mode } = req.body;
   
   if (!mode) {
@@ -44,12 +45,83 @@ app.post('/api/signal-mode', (req, res) => {
     });
   }
   
+  // Handle LSL mode transitions
+  if (mode === 'lsl') {
+    const started = await lslService.start();
+    if (!started) {
+      return res.status(500).json({
+        error: 'Failed to start LSL stream. Make sure the headset software is running.',
+      });
+    }
+  } else if (signalGenerator.getMode() === 'lsl' && mode !== 'lsl') {
+    lslService.stop();
+  }
+  
   signalGenerator.setMode(mode as SignalMode);
   
   res.json({ 
     success: true, 
     mode: signalGenerator.getMode(),
     message: `Signal mode changed to: ${mode}`,
+    lslActive: lslService.getIsRunning(),
+  });
+});
+
+// LSL Control Endpoints
+
+// Get LSL status
+app.get('/api/lsl/status', (req, res) => {
+  res.json({
+    running: lslService.getIsRunning(),
+    config: lslService.getConfig(),
+    streamInfo: lslService.getStreamInfo(),
+  });
+});
+
+// Start LSL stream
+app.post('/api/lsl/start', async (req, res) => {
+  if (lslService.getIsRunning()) {
+    return res.json({ success: true, message: 'LSL stream already running' });
+  }
+  
+  const started = await lslService.start();
+  if (started) {
+    signalGenerator.setMode('lsl');
+    res.json({ success: true, message: 'LSL stream started' });
+  } else {
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to start LSL stream. Make sure the headset software (e.g., unicornlsl.exe) is running.',
+    });
+  }
+});
+
+// Stop LSL stream
+app.post('/api/lsl/stop', (req, res) => {
+  lslService.stop();
+  if (signalGenerator.getMode() === 'lsl') {
+    signalGenerator.setMode('realistic');
+  }
+  res.json({ success: true, message: 'LSL stream stopped' });
+});
+
+// Update LSL configuration
+app.post('/api/lsl/config', (req, res) => {
+  const { sourceType, sourceValue, numEegChannels, timeout, pythonPath } = req.body;
+  
+  const updates: any = {};
+  if (sourceType) updates.sourceType = sourceType;
+  if (sourceValue) updates.sourceValue = sourceValue;
+  if (numEegChannels) updates.numEegChannels = numEegChannels;
+  if (timeout) updates.timeout = timeout;
+  if (pythonPath) updates.pythonPath = pythonPath;
+  
+  lslService.updateConfig(updates);
+  
+  res.json({
+    success: true,
+    config: lslService.getConfig(),
+    message: 'Configuration updated. Restart LSL stream to apply changes.',
   });
 });
 
@@ -66,9 +138,17 @@ const io = new Server(httpServer, {
   pingTimeout: 5000,   // 5 seconds
 });
 
+// Connect LSL service to Socket.IO for emitting EEG data
+lslService.setSocketServer(io);
+
 // Handle socket connections
 io.on('connection', (socket) => {
   setupGameHandlers(io, socket);
+  
+  // Log when a client connects and LSL mode is active
+  if (signalGenerator.getMode() === 'lsl' && lslService.getIsRunning()) {
+    console.log(`[LSL] Client ${socket.id} connected - receiving live EEG data`);
+  }
 });
 
 // Start server
@@ -88,6 +168,12 @@ httpServer.listen(PORT, () => {
 ║  - GET  Mode:  http://localhost:${PORT}/api/signal-mode    ║
 ║  - POST Mode:  http://localhost:${PORT}/api/signal-mode    ║
 ╠═══════════════════════════════════════════════════════╣
+║  LSL Endpoints (Live EEG via Python):                 ║
+║  - GET Status: http://localhost:${PORT}/api/lsl/status     ║
+║  - POST Start: http://localhost:${PORT}/api/lsl/start      ║
+║  - POST Stop:  http://localhost:${PORT}/api/lsl/stop       ║
+║  - POST Config:http://localhost:${PORT}/api/lsl/config     ║
+╠═══════════════════════════════════════════════════════╣
 ║  Available Signal Modes:                              ║
 ║  - realistic:       Simulates real focus patterns     ║
 ║  - random:          Pure random 50/50                 ║
@@ -96,11 +182,16 @@ httpServer.listen(PORT, () => {
 ║  - demo:            Predictable pattern for demos     ║
 ║  - always_focused:  Always concentrated               ║
 ║  - always_unfocused: Never concentrated               ║
+║  - lsl:             Live EEG data from headset        ║
 ╠═══════════════════════════════════════════════════════╣
-║  To change mode:                                      ║
+║  To use LSL mode (live EEG from headset):             ║
+║  1. Install Python deps: pip install pylsl            ║
+║  2. Start headset software (e.g., unicornlsl.exe)     ║
+║  3. curl -X POST http://localhost:${PORT}/api/lsl/start    ║
+║  OR set mode to 'lsl':                                ║
 ║  curl -X POST http://localhost:${PORT}/api/signal-mode \\   ║
 ║       -H "Content-Type: application/json" \\          ║
-║       -d '{"mode": "easy"}'                           ║
+║       -d '{"mode": "lsl"}'                            ║
 ╚═══════════════════════════════════════════════════════╝
   `);
 });
@@ -108,6 +199,12 @@ httpServer.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  
+  // Stop LSL stream if running
+  if (lslService.getIsRunning()) {
+    lslService.stop();
+  }
+  
   io.close(() => {
     httpServer.close(() => {
       console.log('Server closed');

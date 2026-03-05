@@ -1,6 +1,12 @@
 // Signal types
 export type ConcentrationSignal = 'Concentrated' | 'Not Concentrated';
 
+// Raw EEG data from LSL stream
+export interface EegDataMessage {
+  data: number[];
+  timestamp: number;
+}
+
 // WebSocket message types (Server -> Client)
 export interface ConcentrationUpdateMessage {
   type: 'concentration_update';

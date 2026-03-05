@@ -10,7 +10,8 @@ export type SignalMode =
   | 'hard'       // Lower concentration probability (40%)
   | 'demo'       // Predictable pattern for demos
   | 'always_focused'    // Always concentrated (for testing)
-  | 'always_unfocused'; // Never concentrated (for testing)
+  | 'always_unfocused'  // Never concentrated (for testing)
+  | 'lsl';       // Live LSL EEG data from headset
 
 /**
  * Mock EEG Signal Generator
@@ -169,7 +170,7 @@ export class SignalGenerator {
    * Get available modes
    */
   static getAvailableModes(): SignalMode[] {
-    return ['realistic', 'random', 'easy', 'hard', 'demo', 'always_focused', 'always_unfocused'];
+    return ['realistic', 'random', 'easy', 'hard', 'demo', 'always_focused', 'always_unfocused', 'lsl'];
   }
 }
 

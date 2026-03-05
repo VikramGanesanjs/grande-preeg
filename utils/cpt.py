@@ -12,6 +12,8 @@ fix = visual.TextStim(win, text='+', color='white')
 
 clock = core.Clock()
 prevX = False
+
+core.wait(60)
 for trial in range(600):  # ~5 min
     # fixation
     fix.draw()
