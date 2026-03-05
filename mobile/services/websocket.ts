@@ -2,15 +2,14 @@ import { io, Socket } from 'socket.io-client';
 import { ServerMessage } from '../types';
 
 // Default server URL (can be changed in settings)
-// #const DEFAULT_SERVER_URL = 'http://localhost:3001';
 import Constants from 'expo-constants';
 
 // Grab the Expo bundler's URI (e.g., "192.168.137.1:8081")
 const debuggerHost = Constants.expoConfig?.hostUri;
 
-// Strip the Expo port and attach your Python server's port (5000)
+// Strip the Expo port and attach the Node.js server's port (3001)
 const computerIp = debuggerHost ? debuggerHost.split(':')[0] : 'localhost';
-const DEFAULT_SERVER_URL = `http://${computerIp}:5000`;
+const DEFAULT_SERVER_URL = `http://${computerIp}:3001`;
 
 type MessageHandler = (message: ServerMessage) => void;
 type ConnectionHandler = () => void;

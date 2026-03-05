@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { Server } from 'socket.io';
 import * as path from 'path';
 import * as readline from 'readline';
+import * as fs from 'fs';
 
 /**
  * LSL Stream configuration
@@ -70,6 +71,27 @@ export class LslService {
   }
 
   /**
+   * Get the path to the Python script
+   */
+  private getScriptPath(): string {
+    // Try multiple possible locations
+    const possiblePaths = [
+      path.join(__dirname, '../../scripts/lsl_reader.py'),  // When running from src/
+      path.join(__dirname, '../../../scripts/lsl_reader.py'),  // When running from dist/
+      path.join(process.cwd(), 'scripts/lsl_reader.py'),  // Relative to working dir
+    ];
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+
+    // Default to first option
+    return possiblePaths[0];
+  }
+
+  /**
    * Start the Python LSL reader subprocess
    */
   async start(): Promise<boolean> {
@@ -81,7 +103,19 @@ export class LslService {
     console.log('\n[LSL] Starting Python LSL reader...');
 
     return new Promise((resolve) => {
-      const scriptPath = path.join(__dirname, '../../scripts/lsl_reader.py');
+      const scriptPath = this.getScriptPath();
+      
+      console.log('[LSL] Python path:', this.config.pythonPath);
+      console.log('[LSL] Script path:', scriptPath);
+      console.log('[LSL] Script exists:', fs.existsSync(scriptPath));
+      console.log('[LSL] Current dir:', process.cwd());
+      console.log('[LSL] __dirname:', __dirname);
+      
+      if (!fs.existsSync(scriptPath)) {
+        console.error('[LSL] ERROR: Python script not found at:', scriptPath);
+        resolve(false);
+        return;
+      }
       
       const args = [
         scriptPath,
@@ -90,6 +124,8 @@ export class LslService {
         '--channels', this.config.numEegChannels.toString(),
         '--timeout', this.config.timeout.toString(),
       ];
+
+      console.log('[LSL] Spawning Python with args:', args.join(' '));
 
       this.pythonProcess = spawn(this.config.pythonPath, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -114,16 +150,22 @@ export class LslService {
       });
 
       // Handle stderr for debugging
+      let stderrBuffer = '';
       this.pythonProcess.stderr?.on('data', (data) => {
-        const message = data.toString().trim();
-        if (message) {
-          console.error('[LSL Python]', message);
+        const message = data.toString();
+        stderrBuffer += message;
+        const trimmed = message.trim();
+        if (trimmed) {
+          console.error('[LSL Python stderr]', trimmed);
         }
       });
 
       // Handle process exit
       this.pythonProcess.on('close', (code) => {
         console.log(`[LSL] Python process exited with code ${code}`);
+        if (stderrBuffer.trim()) {
+          console.error('[LSL] Full stderr output:', stderrBuffer);
+        }
         this.isRunning = false;
         this.pythonProcess = null;
         resolveOnce(false);
@@ -131,7 +173,8 @@ export class LslService {
 
       this.pythonProcess.on('error', (err) => {
         console.error('[LSL] Failed to start Python process:', err.message);
-        console.error('[LSL] Make sure Python 3 and pylsl are installed');
+        console.error('[LSL] Make sure Python 3 is installed and accessible');
+        console.error('[LSL] Try: which python3 (or where python on Windows)');
         this.isRunning = false;
         resolveOnce(false);
       });
