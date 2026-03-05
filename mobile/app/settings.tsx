@@ -16,10 +16,12 @@ export default function SettingsScreen() {
     serverUrl,
     soundEnabled,
     hapticsEnabled,
+    devModeEnabled,
     setConcentrationThreshold,
     setServerUrl,
     setSoundEnabled,
     setHapticsEnabled,
+    setDevModeEnabled,
   } = useSettingsStore();
   
   // Connection state
@@ -140,6 +142,25 @@ export default function SettingsScreen() {
         {/* Developer Settings Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Developer</Text>
+          
+          {/* Dev Mode */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="bug" size={20} color={colors.warning} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Dev Mode</Text>
+                <Text style={styles.settingDescription}>
+                  Show raw EEG data during gameplay
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={devModeEnabled}
+              onValueChange={setDevModeEnabled}
+              trackColor={{ false: colors.surfaceLight, true: colors.primaryLight }}
+              thumbColor={devModeEnabled ? colors.primary : colors.textMuted}
+            />
+          </View>
           
           {/* Server URL */}
           <View style={styles.settingRowVertical}>

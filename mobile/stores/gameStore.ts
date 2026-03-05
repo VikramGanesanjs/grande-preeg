@@ -36,6 +36,12 @@ interface GameState {
   
   // Timer interval reference
   timerInterval: NodeJS.Timeout | null;
+  
+  // Raw EEG data (for dev mode)
+  rawEegData: number[] | null;
+  
+  // Average of raw EEG values
+  rawEegAverage: number | null;
 }
 
 interface GameActions {
@@ -93,6 +99,8 @@ const initialState: GameState = {
   countdown: 3,
   startTime: null,
   timerInterval: null,
+  rawEegData: null,
+  rawEegAverage: null,
 };
 
 export const useGameStore = create<GameStore>((set, get) => {
@@ -112,6 +120,18 @@ export const useGameStore = create<GameStore>((set, get) => {
         // Only process signals when game is playing
         if (state.status === 'playing') {
           get().processSignal(message.payload.signal);
+        }
+        break;
+        
+      case 'eeg_data':
+        // Raw EEG data from LSL stream (for dev mode)
+        const eegData = message.payload as number[];
+        if (eegData && Array.isArray(eegData) && eegData.length > 0) {
+          const average = eegData.reduce((sum, val) => sum + val, 0) / eegData.length;
+          set({
+            rawEegData: eegData,
+            rawEegAverage: average,
+          });
         }
         break;
         

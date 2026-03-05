@@ -1,9 +1,9 @@
 import React, { useEffect, useCallback } from 'react';
-import { StyleSheet, View, BackHandler } from 'react-native';
+import { StyleSheet, View, BackHandler, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { colors } from '../../constants/theme';
+import { colors, typography, spacing } from '../../constants/theme';
 import { useGameStore } from '../../stores/gameStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { RaceTrack, ConcentrationMeter, GameHUD, Countdown } from '../../components/game';
@@ -25,10 +25,13 @@ export default function GameScreen() {
     pauseGame,
     resumeGame,
     endGame,
+    rawEegData,
+    rawEegAverage,
   } = useGameStore();
   
   // Settings
   const hapticsEnabled = useSettingsStore((state) => state.hapticsEnabled);
+  const devModeEnabled = useSettingsStore((state) => state.devModeEnabled);
   
   // Track previous advances for haptic feedback
   const prevAdvancesRef = React.useRef(totalAdvances);
@@ -135,6 +138,27 @@ export default function GameScreen() {
           </View>
         </View>
       )}
+      
+      {/* Dev Mode Overlay */}
+      {devModeEnabled && (
+        <View style={styles.devModeOverlay}>
+          <Text style={styles.devModeTitle}>DEV MODE</Text>
+          <View style={styles.devModeRow}>
+            <Text style={styles.devModeLabel}>Avg EEG:</Text>
+            <Text style={styles.devModeValue}>
+              {rawEegAverage !== null ? rawEegAverage.toFixed(2) : 'N/A'}
+            </Text>
+          </View>
+          {rawEegData && (
+            <View style={styles.devModeRow}>
+              <Text style={styles.devModeLabel}>Channels:</Text>
+              <Text style={styles.devModeChannels} numberOfLines={1}>
+                [{rawEegData.map(v => v.toFixed(1)).join(', ')}]
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -170,5 +194,46 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: colors.surface,
+  },
+  devModeOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.primary,
+  },
+  devModeTitle: {
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.primary,
+    marginBottom: spacing.xs,
+    letterSpacing: 1,
+  },
+  devModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  devModeLabel: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.textMuted,
+    marginRight: spacing.sm,
+    fontFamily: 'monospace',
+  },
+  devModeValue: {
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.text,
+    fontFamily: 'monospace',
+  },
+  devModeChannels: {
+    fontSize: typography.fontSizes.xs,
+    color: colors.textSecondary,
+    fontFamily: 'monospace',
+    flex: 1,
   },
 });

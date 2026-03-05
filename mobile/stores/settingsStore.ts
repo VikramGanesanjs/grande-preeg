@@ -17,6 +17,9 @@ interface SettingsState {
   
   // Has completed tutorial
   hasCompletedTutorial: boolean;
+  
+  // Dev mode - shows raw EEG data
+  devModeEnabled: boolean;
 }
 
 interface SettingsActions {
@@ -25,6 +28,7 @@ interface SettingsActions {
   setSoundEnabled: (enabled: boolean) => void;
   setHapticsEnabled: (enabled: boolean) => void;
   setHasCompletedTutorial: (completed: boolean) => void;
+  setDevModeEnabled: (enabled: boolean) => void;
   resetSettings: () => void;
 }
 
@@ -36,6 +40,7 @@ const defaultSettings: SettingsState = {
   soundEnabled: true,
   hapticsEnabled: true,
   hasCompletedTutorial: false,
+  devModeEnabled: false,
 };
 
 // Note: AsyncStorage needs to be installed separately
@@ -61,6 +66,10 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
 
   setHasCompletedTutorial: (completed: boolean) => {
     set({ hasCompletedTutorial: completed });
+  },
+
+  setDevModeEnabled: (enabled: boolean) => {
+    set({ devModeEnabled: enabled });
   },
 
   resetSettings: () => {
