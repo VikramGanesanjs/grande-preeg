@@ -267,8 +267,11 @@ export class LslService {
 
         case 'data':
           if (this.io && message.data) {
-            // Log processed signal data
-            console.log(`[LSL] Signal: ${message.signal} | Alpha: ${message.alpha_power?.toFixed(3)} | Beta: ${message.beta_power?.toFixed(3)}`);
+            // Calculate mean EEG value
+            const meanEeg = message.data.reduce((sum: number, val: number) => sum + val, 0) / message.data.length;
+            
+            // Log processed signal data with mean EEG and alpha power
+            console.log(`[LSL] Mean EEG: ${meanEeg.toFixed(2)} | Alpha: ${message.alpha_power?.toFixed(3)} | Beta: ${message.beta_power?.toFixed(3)} | Signal: ${message.signal}`);
             
             // Emit raw EEG data for dev mode display
             this.io.emit('eeg_data', {
