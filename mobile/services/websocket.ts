@@ -196,8 +196,8 @@ class WebSocketService {
       this.messageHandlers.forEach((handler) => handler(data));
     });
 
-    this.socket.on('eeg_data', (payload: { data: number[] }) => {
-      const serverMsg = { type: 'eeg_data', payload: payload.data } as ServerMessage;
+    this.socket.on('eeg_data', (payload: { data: number[], alpha_power?: number, beta_power?: number }) => {
+      const serverMsg = { type: 'eeg_data', payload } as ServerMessage;
       this.messageHandlers.forEach((handler) => handler(serverMsg));
     });
   }

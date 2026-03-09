@@ -8,22 +8,56 @@ import * as fs from 'fs';
  * LSL Stream configuration
  */
 export interface LslConfig {
+  // LSL connection
   sourceType: string;
   sourceValue: string;
-  numEegChannels: number;
   timeout: number;
   pythonPath: string;
+  
+  // Signal processing
+  nativeSampleRate: number;
+  targetSampleRate: number;
+  windowDuration: number;
+  outputInterval: number;
+  numEegChannels: number;
+  
+  // Frequency bands
+  alphaLow: number;
+  alphaHigh: number;
+  betaLow: number;
+  betaHigh: number;
+  
+  // Thresholds
+  alphaThreshold: number;
+  betaThreshold: number;
 }
 
 /**
- * Default configuration matching the Unicorn headset
+ * Default configuration
  */
 export const DEFAULT_LSL_CONFIG: LslConfig = {
+  // LSL connection
   sourceType: 'type',
   sourceValue: 'Data',
-  numEegChannels: 8,
   timeout: 10,
   pythonPath: 'python3',
+  
+  // Signal processing - 250 Hz native, downsample to 50 Hz
+  nativeSampleRate: 250,
+  targetSampleRate: 50,
+  windowDuration: 1.0,      // 1 second window for bandpower calculation
+  outputInterval: 0.2,      // Output every 200ms (5 Hz)
+  numEegChannels: 8,
+  
+  // Frequency bands (Hz)
+  alphaLow: 8,
+  alphaHigh: 12,
+  betaLow: 13,
+  betaHigh: 30,
+  
+  // Thresholds - these may need calibration per user
+  alphaThreshold: 1.0,
+  betaThreshold: 1.0,
 };
 
 /**
@@ -38,14 +72,21 @@ interface LslMessage {
   stream_type?: string;
   channel_count?: number;
   sample_rate?: number;
+  // Signal processing results
+  alpha_power?: number;
+  beta_power?: number;
+  signal?: 'Concentrated' | 'Not Concentrated';
 }
 
 /**
  * LSL Service - Manages connection to LSL EEG stream via Python subprocess
  * 
- * Spawns a Python process that uses pylsl to read EEG data from the LSL stream.
- * The Python script outputs JSON messages to stdout which this service parses
- * and emits via Socket.IO to connected clients.
+ * Spawns a Python process that:
+ * 1. Reads raw EEG data from LSL stream
+ * 2. Downsamples from native rate (250 Hz) to target rate (50 Hz)
+ * 3. Applies Hilbert transform to extract alpha and beta bandpower
+ * 4. Determines concentration state based on thresholds
+ * 5. Outputs processed signals at configured interval (e.g., 5 Hz)
  */
 export class LslService {
   private pythonProcess: ChildProcess | null = null;
@@ -64,21 +105,13 @@ export class LslService {
   }
 
   /**
-   * Set the Socket.IO server instance for emitting data
-   */
-  setSocketServer(io: Server): void {
-    this.io = io;
-  }
-
-  /**
    * Get the path to the Python script
    */
   private getScriptPath(): string {
-    // Try multiple possible locations
     const possiblePaths = [
-      path.join(__dirname, '../../scripts/lsl_reader.py'),  // When running from src/
-      path.join(__dirname, '../../../scripts/lsl_reader.py'),  // When running from dist/
-      path.join(process.cwd(), 'scripts/lsl_reader.py'),  // Relative to working dir
+      path.join(__dirname, '../../scripts/lsl_reader.py'),
+      path.join(__dirname, '../../../scripts/lsl_reader.py'),
+      path.join(process.cwd(), 'scripts/lsl_reader.py'),
     ];
 
     for (const p of possiblePaths) {
@@ -87,8 +120,14 @@ export class LslService {
       }
     }
 
-    // Default to first option
     return possiblePaths[0];
+  }
+
+  /**
+   * Set the Socket.IO server instance for emitting data
+   */
+  setSocketServer(io: Server): void {
+    this.io = io;
   }
 
   /**
@@ -100,7 +139,7 @@ export class LslService {
       return true;
     }
 
-    console.log('\n[LSL] Starting Python LSL reader...');
+    console.log('\n[LSL] Starting Python LSL reader with signal processing...');
 
     return new Promise((resolve) => {
       const scriptPath = this.getScriptPath();
@@ -108,8 +147,6 @@ export class LslService {
       console.log('[LSL] Python path:', this.config.pythonPath);
       console.log('[LSL] Script path:', scriptPath);
       console.log('[LSL] Script exists:', fs.existsSync(scriptPath));
-      console.log('[LSL] Current dir:', process.cwd());
-      console.log('[LSL] __dirname:', __dirname);
       
       if (!fs.existsSync(scriptPath)) {
         console.error('[LSL] ERROR: Python script not found at:', scriptPath);
@@ -121,11 +158,27 @@ export class LslService {
         scriptPath,
         '--source-type', this.config.sourceType,
         '--source-value', this.config.sourceValue,
-        '--channels', this.config.numEegChannels.toString(),
         '--timeout', this.config.timeout.toString(),
+        '--native-rate', this.config.nativeSampleRate.toString(),
+        '--target-rate', this.config.targetSampleRate.toString(),
+        '--window', this.config.windowDuration.toString(),
+        '--interval', this.config.outputInterval.toString(),
+        '--channels', this.config.numEegChannels.toString(),
+        '--alpha-low', this.config.alphaLow.toString(),
+        '--alpha-high', this.config.alphaHigh.toString(),
+        '--beta-low', this.config.betaLow.toString(),
+        '--beta-high', this.config.betaHigh.toString(),
+        '--alpha-threshold', this.config.alphaThreshold.toString(),
+        '--beta-threshold', this.config.betaThreshold.toString(),
       ];
 
-      console.log('[LSL] Spawning Python with args:', args.join(' '));
+      console.log('[LSL] Config:', {
+        targetRate: this.config.targetSampleRate,
+        outputInterval: this.config.outputInterval,
+        windowDuration: this.config.windowDuration,
+        alphaThreshold: this.config.alphaThreshold,
+        betaThreshold: this.config.betaThreshold,
+      });
 
       this.pythonProcess = spawn(this.config.pythonPath, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -139,7 +192,6 @@ export class LslService {
         }
       };
 
-      // Set up readline to parse JSON messages from Python stdout
       const rl = readline.createInterface({
         input: this.pythonProcess.stdout!,
         crlfDelay: Infinity,
@@ -149,7 +201,6 @@ export class LslService {
         this.handlePythonMessage(line, resolveOnce);
       });
 
-      // Handle stderr for debugging
       let stderrBuffer = '';
       this.pythonProcess.stderr?.on('data', (data) => {
         const message = data.toString();
@@ -160,7 +211,6 @@ export class LslService {
         }
       });
 
-      // Handle process exit
       this.pythonProcess.on('close', (code) => {
         console.log(`[LSL] Python process exited with code ${code}`);
         if (stderrBuffer.trim()) {
@@ -173,13 +223,11 @@ export class LslService {
 
       this.pythonProcess.on('error', (err) => {
         console.error('[LSL] Failed to start Python process:', err.message);
-        console.error('[LSL] Make sure Python 3 is installed and accessible');
-        console.error('[LSL] Try: which python3 (or where python on Windows)');
+        console.error('[LSL] Make sure Python 3, pylsl, scipy, and numpy are installed');
         this.isRunning = false;
         resolveOnce(false);
       });
 
-      // Timeout for stream discovery
       setTimeout(() => {
         if (!resolved) {
           console.error('[LSL] Timeout waiting for LSL stream');
@@ -219,13 +267,29 @@ export class LslService {
 
         case 'data':
           if (this.io && message.data) {
-            const avg = message.data.reduce((sum: number, val: number) => sum + val, 0) / message.data.length;
-            console.log(`[LSL] EEG data received - Mean: ${avg.toFixed(2)}, Channels: [${message.data.map((v: number) => v.toFixed(1)).join(', ')}]`);
+            // Log processed signal data
+            console.log(`[LSL] Signal: ${message.signal} | Alpha: ${message.alpha_power?.toFixed(3)} | Beta: ${message.beta_power?.toFixed(3)}`);
             
+            // Emit raw EEG data for dev mode display
             this.io.emit('eeg_data', {
               data: message.data,
+              alpha_power: message.alpha_power,
+              beta_power: message.beta_power,
               timestamp: message.timestamp || Date.now(),
             });
+            
+            // Emit concentration signal for game logic
+            if (message.signal) {
+              this.io.emit('message', {
+                type: 'concentration_update',
+                payload: {
+                  signal: message.signal,
+                  timestamp: message.timestamp || Date.now(),
+                  alpha_power: message.alpha_power,
+                  beta_power: message.beta_power,
+                },
+              });
+            }
           }
           break;
 

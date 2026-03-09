@@ -42,6 +42,10 @@ interface GameState {
   
   // Average of raw EEG values
   rawEegAverage: number | null;
+  
+  // Alpha and beta bandpower (from signal processing)
+  alphaPower: number | null;
+  betaPower: number | null;
 }
 
 interface GameActions {
@@ -101,6 +105,8 @@ const initialState: GameState = {
   timerInterval: null,
   rawEegData: null,
   rawEegAverage: null,
+  alphaPower: null,
+  betaPower: null,
 };
 
 export const useGameStore = create<GameStore>((set, get) => {
@@ -124,14 +130,19 @@ export const useGameStore = create<GameStore>((set, get) => {
         break;
         
       case 'eeg_data':
-        // Raw EEG data from LSL stream (for dev mode)
-        const eegData = message.payload as number[];
-        if (eegData && Array.isArray(eegData) && eegData.length > 0) {
-          const average = eegData.reduce((sum, val) => sum + val, 0) / eegData.length;
-          set({
-            rawEegData: eegData,
-            rawEegAverage: average,
-          });
+        // Raw EEG data from LSL stream with bandpower (for dev mode)
+        const eegPayload = message.payload as any;
+        if (eegPayload) {
+          const eegData = eegPayload.data || eegPayload;
+          if (Array.isArray(eegData) && eegData.length > 0) {
+            const average = eegData.reduce((sum: number, val: number) => sum + val, 0) / eegData.length;
+            set({
+              rawEegData: eegData,
+              rawEegAverage: average,
+              alphaPower: eegPayload.alpha_power ?? null,
+              betaPower: eegPayload.beta_power ?? null,
+            });
+          }
         }
         break;
         

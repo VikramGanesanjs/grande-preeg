@@ -107,14 +107,41 @@ app.post('/api/lsl/stop', (req, res) => {
 
 // Update LSL configuration
 app.post('/api/lsl/config', (req, res) => {
-  const { sourceType, sourceValue, numEegChannels, timeout, pythonPath } = req.body;
+  const { 
+    sourceType, 
+    sourceValue, 
+    numEegChannels, 
+    timeout, 
+    pythonPath,
+    // Signal processing
+    targetSampleRate,
+    windowDuration,
+    outputInterval,
+    // Thresholds
+    alphaThreshold,
+    betaThreshold,
+    // Frequency bands
+    alphaLow,
+    alphaHigh,
+    betaLow,
+    betaHigh,
+  } = req.body;
   
   const updates: any = {};
-  if (sourceType) updates.sourceType = sourceType;
-  if (sourceValue) updates.sourceValue = sourceValue;
-  if (numEegChannels) updates.numEegChannels = numEegChannels;
-  if (timeout) updates.timeout = timeout;
-  if (pythonPath) updates.pythonPath = pythonPath;
+  if (sourceType !== undefined) updates.sourceType = sourceType;
+  if (sourceValue !== undefined) updates.sourceValue = sourceValue;
+  if (numEegChannels !== undefined) updates.numEegChannels = numEegChannels;
+  if (timeout !== undefined) updates.timeout = timeout;
+  if (pythonPath !== undefined) updates.pythonPath = pythonPath;
+  if (targetSampleRate !== undefined) updates.targetSampleRate = targetSampleRate;
+  if (windowDuration !== undefined) updates.windowDuration = windowDuration;
+  if (outputInterval !== undefined) updates.outputInterval = outputInterval;
+  if (alphaThreshold !== undefined) updates.alphaThreshold = alphaThreshold;
+  if (betaThreshold !== undefined) updates.betaThreshold = betaThreshold;
+  if (alphaLow !== undefined) updates.alphaLow = alphaLow;
+  if (alphaHigh !== undefined) updates.alphaHigh = alphaHigh;
+  if (betaLow !== undefined) updates.betaLow = betaLow;
+  if (betaHigh !== undefined) updates.betaHigh = betaHigh;
   
   lslService.updateConfig(updates);
   

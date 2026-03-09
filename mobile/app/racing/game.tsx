@@ -27,6 +27,8 @@ export default function GameScreen() {
     endGame,
     rawEegData,
     rawEegAverage,
+    alphaPower,
+    betaPower,
   } = useGameStore();
   
   // Settings
@@ -143,17 +145,41 @@ export default function GameScreen() {
       {devModeEnabled && (
         <View style={styles.devModeOverlay}>
           <Text style={styles.devModeTitle}>DEV MODE</Text>
-          <View style={styles.devModeRow}>
-            <Text style={styles.devModeLabel}>Avg EEG:</Text>
-            <Text style={styles.devModeValue}>
-              {rawEegAverage !== null ? rawEegAverage.toFixed(2) : 'N/A'}
-            </Text>
+          <View style={styles.devModeGrid}>
+            <View style={styles.devModeColumn}>
+              <View style={styles.devModeRow}>
+                <Text style={styles.devModeLabel}>Alpha:</Text>
+                <Text style={[styles.devModeValue, alphaPower !== null && alphaPower > 1 && styles.devModeValueActive]}>
+                  {alphaPower !== null ? alphaPower.toFixed(3) : 'N/A'}
+                </Text>
+              </View>
+              <View style={styles.devModeRow}>
+                <Text style={styles.devModeLabel}>Beta:</Text>
+                <Text style={[styles.devModeValue, betaPower !== null && betaPower > 1 && styles.devModeValueActive]}>
+                  {betaPower !== null ? betaPower.toFixed(3) : 'N/A'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.devModeColumn}>
+              <View style={styles.devModeRow}>
+                <Text style={styles.devModeLabel}>Avg:</Text>
+                <Text style={styles.devModeValue}>
+                  {rawEegAverage !== null ? rawEegAverage.toFixed(1) : 'N/A'}
+                </Text>
+              </View>
+              <View style={styles.devModeRow}>
+                <Text style={styles.devModeLabel}>Signal:</Text>
+                <Text style={[styles.devModeValue, isConcentrated && styles.devModeValueActive]}>
+                  {currentSignal || 'N/A'}
+                </Text>
+              </View>
+            </View>
           </View>
           {rawEegData && (
             <View style={styles.devModeRow}>
-              <Text style={styles.devModeLabel}>Channels:</Text>
+              <Text style={styles.devModeLabel}>Ch:</Text>
               <Text style={styles.devModeChannels} numberOfLines={1}>
-                [{rawEegData.map(v => v.toFixed(1)).join(', ')}]
+                [{rawEegData.map(v => v.toFixed(0)).join(', ')}]
               </Text>
             </View>
           )}
@@ -200,10 +226,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: 2,
     borderTopColor: colors.primary,
   },
   devModeTitle: {
@@ -213,6 +239,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     letterSpacing: 1,
   },
+  devModeGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  devModeColumn: {
+    flex: 1,
+  },
   devModeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,14 +255,18 @@ const styles = StyleSheet.create({
   devModeLabel: {
     fontSize: typography.fontSizes.sm,
     color: colors.textMuted,
-    marginRight: spacing.sm,
+    marginRight: spacing.xs,
     fontFamily: 'monospace',
+    width: 50,
   },
   devModeValue: {
-    fontSize: typography.fontSizes.md,
+    fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.bold,
     color: colors.text,
     fontFamily: 'monospace',
+  },
+  devModeValueActive: {
+    color: colors.concentrated,
   },
   devModeChannels: {
     fontSize: typography.fontSizes.xs,
