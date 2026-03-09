@@ -53,9 +53,10 @@ export const DEFAULT_LSL_CONFIG: LslConfig = {
   betaLow: 13,
   betaHigh: 30,
   
-  // Thresholds - these may need calibration per user
-  alphaThreshold: 1.0,
-  betaThreshold: 1.0,
+  // Thresholds for sum of alpha + beta power
+  // Concentrated when: alphaThreshold < (alpha + beta) < betaThreshold
+  alphaThreshold: 16.0,  // Min sum threshold
+  betaThreshold: 60.0,   // Max sum threshold
 };
 
 /**
@@ -73,6 +74,8 @@ interface LslMessage {
   // Signal processing results
   alpha_power?: number;
   beta_power?: number;
+  power_sum?: number;
+  mean_eeg?: number;
   signal?: 'Concentrated' | 'Not Concentrated';
 }
 
@@ -264,17 +267,16 @@ export class LslService {
 
         case 'data':
           if (this.io && message.data) {
-            // Calculate mean EEG value
-            const meanEeg = message.data.reduce((sum: number, val: number) => sum + val, 0) / message.data.length;
-            
-            // Log processed signal data with mean EEG and alpha power
-            console.log(`[LSL] Mean EEG: ${meanEeg.toFixed(2)} | Alpha: ${message.alpha_power?.toFixed(3)} | Beta: ${message.beta_power?.toFixed(3)} | Signal: ${message.signal}`);
+            // Log processed signal data with power sum
+            const powerSum = message.power_sum ?? ((message.alpha_power ?? 0) + (message.beta_power ?? 0));
+            console.log(`[LSL] Sum: ${powerSum.toFixed(2)} (α:${message.alpha_power?.toFixed(2)} + β:${message.beta_power?.toFixed(2)}) | Signal: ${message.signal}`);
             
             // Emit raw EEG data for dev mode display
             this.io.emit('eeg_data', {
               data: message.data,
               alpha_power: message.alpha_power,
               beta_power: message.beta_power,
+              power_sum: powerSum,
               timestamp: message.timestamp || Date.now(),
             });
             
@@ -287,6 +289,7 @@ export class LslService {
                   timestamp: message.timestamp || Date.now(),
                   alpha_power: message.alpha_power,
                   beta_power: message.beta_power,
+                  power_sum: powerSum,
                 },
               });
             }

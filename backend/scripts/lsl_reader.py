@@ -57,9 +57,9 @@ class OptimizedEEGProcessor:
         self.output_interval = output_interval
         self.num_channels = num_channels
         
-        # Thresholds
-        self.alpha_threshold = alpha_threshold
-        self.beta_threshold = beta_threshold
+        # Thresholds for sum of alpha + beta power
+        self.power_sum_min = alpha_threshold  # Reuse as min threshold (default 16)
+        self.power_sum_max = beta_threshold   # Reuse as max threshold (default 60)
         
         # Calculate buffer sizes
         self.window_samples = int(sample_rate * window_duration)
@@ -90,7 +90,8 @@ class OptimizedEEGProcessor:
                      min_samples=self.min_samples,
                      nyquist=nyquist,
                      alpha_band=f"{alpha_low}-{alpha_high} Hz",
-                     beta_band=f"{beta_low}-{beta_high} Hz")
+                     beta_band=f"{beta_low}-{beta_high} Hz",
+                     concentration_rule=f"Concentrated when {self.power_sum_min} < (alpha+beta) < {self.power_sum_max}")
     
     def _design_bandpass(self, lowcut: float, highcut: float, order: int = 4):
         """Design Butterworth bandpass filter (done once at init)."""
@@ -153,8 +154,10 @@ class OptimizedEEGProcessor:
         alpha_power = self._compute_bandpower(avg_signal, self.alpha_coeffs)
         beta_power = self._compute_bandpower(avg_signal, self.beta_coeffs)
         
-        # Determine concentration state
-        is_concentrated = (alpha_power > self.alpha_threshold) or (beta_power > self.beta_threshold)
+        # Determine concentration state based on sum of alpha + beta power
+        # Concentrated when: power_sum_min < (alpha + beta) < power_sum_max
+        power_sum = alpha_power + beta_power
+        is_concentrated = (power_sum > self.power_sum_min) and (power_sum < self.power_sum_max)
         signal = "Concentrated" if is_concentrated else "Not Concentrated"
         
         # Get latest sample
@@ -167,6 +170,7 @@ class OptimizedEEGProcessor:
             "mean_eeg": mean_eeg,
             "alpha_power": alpha_power,
             "beta_power": beta_power,
+            "power_sum": power_sum,
             "signal": signal,
             "buffer_fill": min(1.0, self.samples_collected / self.window_samples),
         }
@@ -192,9 +196,11 @@ def main():
     parser.add_argument('--beta-low', type=float, default=13.0)
     parser.add_argument('--beta-high', type=float, default=30.0)
     
-    # Thresholds
-    parser.add_argument('--alpha-threshold', type=float, default=1.0)
-    parser.add_argument('--beta-threshold', type=float, default=1.0)
+    # Thresholds for sum of alpha + beta power
+    parser.add_argument('--alpha-threshold', type=float, default=16.0,
+                        help='Minimum sum threshold for concentration (default: 16)')
+    parser.add_argument('--beta-threshold', type=float, default=60.0,
+                        help='Maximum sum threshold for concentration (default: 60)')
     
     args = parser.parse_args()
 

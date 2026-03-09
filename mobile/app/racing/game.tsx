@@ -29,6 +29,7 @@ export default function GameScreen() {
     rawEegAverage,
     alphaPower,
     betaPower,
+    powerSum,
   } = useGameStore();
   
   // Settings
@@ -144,19 +145,34 @@ export default function GameScreen() {
       {/* Dev Mode Overlay */}
       {devModeEnabled && (
         <View style={styles.devModeOverlay}>
-          <Text style={styles.devModeTitle}>DEV MODE</Text>
+          <View style={styles.devModeHeader}>
+            <Text style={styles.devModeTitle}>DEV MODE</Text>
+            <Text style={styles.devModeRule}>16 {'<'} sum {'<'} 60 = focused</Text>
+          </View>
+          <View style={styles.devModeSumRow}>
+            <Text style={styles.devModeSumLabel}>Sum (α+β):</Text>
+            <Text style={[
+              styles.devModeSumValue, 
+              powerSum !== null && powerSum > 16 && powerSum < 60 && styles.devModeValueActive
+            ]}>
+              {powerSum !== null ? powerSum.toFixed(2) : 'N/A'}
+            </Text>
+            <Text style={[styles.devModeSignal, isConcentrated && styles.devModeValueActive]}>
+              {isConcentrated ? '● FOCUSED' : '○ UNFOCUSED'}
+            </Text>
+          </View>
           <View style={styles.devModeGrid}>
             <View style={styles.devModeColumn}>
               <View style={styles.devModeRow}>
                 <Text style={styles.devModeLabel}>Alpha:</Text>
-                <Text style={[styles.devModeValue, alphaPower !== null && alphaPower > 1 && styles.devModeValueActive]}>
-                  {alphaPower !== null ? alphaPower.toFixed(3) : 'N/A'}
+                <Text style={styles.devModeValue}>
+                  {alphaPower !== null ? alphaPower.toFixed(2) : 'N/A'}
                 </Text>
               </View>
               <View style={styles.devModeRow}>
                 <Text style={styles.devModeLabel}>Beta:</Text>
-                <Text style={[styles.devModeValue, betaPower !== null && betaPower > 1 && styles.devModeValueActive]}>
-                  {betaPower !== null ? betaPower.toFixed(3) : 'N/A'}
+                <Text style={styles.devModeValue}>
+                  {betaPower !== null ? betaPower.toFixed(2) : 'N/A'}
                 </Text>
               </View>
             </View>
@@ -167,22 +183,8 @@ export default function GameScreen() {
                   {rawEegAverage !== null ? rawEegAverage.toFixed(1) : 'N/A'}
                 </Text>
               </View>
-              <View style={styles.devModeRow}>
-                <Text style={styles.devModeLabel}>Signal:</Text>
-                <Text style={[styles.devModeValue, isConcentrated && styles.devModeValueActive]}>
-                  {currentSignal || 'N/A'}
-                </Text>
-              </View>
             </View>
           </View>
-          {rawEegData && (
-            <View style={styles.devModeRow}>
-              <Text style={styles.devModeLabel}>Ch:</Text>
-              <Text style={styles.devModeChannels} numberOfLines={1}>
-                [{rawEegData.map(v => v.toFixed(0)).join(', ')}]
-              </Text>
-            </View>
-          )}
         </View>
       )}
     </SafeAreaView>
@@ -232,17 +234,55 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: colors.primary,
   },
+  devModeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
   devModeTitle: {
     fontSize: typography.fontSizes.xs,
     fontWeight: typography.fontWeights.bold,
     color: colors.primary,
-    marginBottom: spacing.xs,
     letterSpacing: 1,
+  },
+  devModeRule: {
+    fontSize: typography.fontSizes.xs,
+    color: colors.textMuted,
+    fontFamily: 'monospace',
+  },
+  devModeSumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 4,
+    marginBottom: spacing.xs,
+  },
+  devModeSumLabel: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.textMuted,
+    fontFamily: 'monospace',
+  },
+  devModeSumValue: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.text,
+    fontFamily: 'monospace',
+    marginLeft: spacing.xs,
+    minWidth: 60,
+  },
+  devModeSignal: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.textMuted,
+    marginLeft: 'auto',
+    fontFamily: 'monospace',
   },
   devModeGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
   },
   devModeColumn: {
     flex: 1,
@@ -267,11 +307,5 @@ const styles = StyleSheet.create({
   },
   devModeValueActive: {
     color: colors.concentrated,
-  },
-  devModeChannels: {
-    fontSize: typography.fontSizes.xs,
-    color: colors.textSecondary,
-    fontFamily: 'monospace',
-    flex: 1,
   },
 });

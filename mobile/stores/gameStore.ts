@@ -46,6 +46,7 @@ interface GameState {
   // Alpha and beta bandpower (from signal processing)
   alphaPower: number | null;
   betaPower: number | null;
+  powerSum: number | null;
 }
 
 interface GameActions {
@@ -107,6 +108,7 @@ const initialState: GameState = {
   rawEegAverage: null,
   alphaPower: null,
   betaPower: null,
+  powerSum: null,
 };
 
 export const useGameStore = create<GameStore>((set, get) => {
@@ -141,6 +143,7 @@ export const useGameStore = create<GameStore>((set, get) => {
               rawEegAverage: average,
               alphaPower: eegPayload.alpha_power ?? null,
               betaPower: eegPayload.beta_power ?? null,
+              powerSum: eegPayload.power_sum ?? null,
             });
           }
         }
