@@ -219,6 +219,9 @@ export class LslService {
 
         case 'data':
           if (this.io && message.data) {
+            const avg = message.data.reduce((sum: number, val: number) => sum + val, 0) / message.data.length;
+            console.log(`[LSL] EEG data received - Mean: ${avg.toFixed(2)}, Channels: [${message.data.map((v: number) => v.toFixed(1)).join(', ')}]`);
+            
             this.io.emit('eeg_data', {
               data: message.data,
               timestamp: message.timestamp || Date.now(),
