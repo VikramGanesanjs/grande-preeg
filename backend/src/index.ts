@@ -114,7 +114,7 @@ app.post('/api/lsl/config', (req, res) => {
     timeout, 
     pythonPath,
     // Signal processing
-    targetSampleRate,
+    sampleRate,
     windowDuration,
     outputInterval,
     // Thresholds
@@ -133,7 +133,7 @@ app.post('/api/lsl/config', (req, res) => {
   if (numEegChannels !== undefined) updates.numEegChannels = numEegChannels;
   if (timeout !== undefined) updates.timeout = timeout;
   if (pythonPath !== undefined) updates.pythonPath = pythonPath;
-  if (targetSampleRate !== undefined) updates.targetSampleRate = targetSampleRate;
+  if (sampleRate !== undefined) updates.sampleRate = sampleRate;
   if (windowDuration !== undefined) updates.windowDuration = windowDuration;
   if (outputInterval !== undefined) updates.outputInterval = outputInterval;
   if (alphaThreshold !== undefined) updates.alphaThreshold = alphaThreshold;

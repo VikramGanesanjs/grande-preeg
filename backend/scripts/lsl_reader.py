@@ -6,12 +6,12 @@ This script reads EEG data from an LSL stream, applies signal processing to extr
 alpha and beta bandpower, and outputs concentration signals based on thresholds.
 
 Signal Processing Pipeline:
-1. Collect samples at native rate (e.g., 250 Hz)
-2. Downsample to target rate (e.g., 50 Hz)
-3. Apply bandpass filtering for alpha (8-12 Hz) and beta (13-30 Hz)
-4. Use Hilbert transform to extract signal envelope (instantaneous amplitude)
-5. Calculate bandpower as mean squared amplitude
-6. Compare to thresholds to determine concentration state
+1. Collect samples at native rate (e.g., 250 Hz) - NO downsampling
+2. Apply bandpass filtering for alpha (8-12 Hz) and beta (13-30 Hz)
+3. Use Hilbert transform to extract signal envelope (instantaneous amplitude)
+4. Calculate bandpower as mean squared amplitude
+5. Compare to thresholds to determine concentration state
+6. Output at reduced frequency to avoid overwhelming the client
 
 Output format (one JSON object per line):
     {"type": "data", "data": [...], "alpha_power": 1.23, "beta_power": 4.56, "signal": "Concentrated"}
@@ -47,6 +47,14 @@ def butter_bandpass(lowcut: float, highcut: float, fs: float, order: int = 4):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
+    
+    # Clamp to valid range (0, 1)
+    low = max(0.001, min(0.999, low))
+    high = max(0.001, min(0.999, high))
+    
+    if low >= high:
+        raise ValueError(f"Invalid frequency range: {lowcut}-{highcut} Hz for sample rate {fs} Hz")
+    
     b, a = butter(order, [low, high], btype='band')
     return b, a
 
@@ -66,28 +74,34 @@ def compute_bandpower(data: np.ndarray, fs: float, low_freq: float, high_freq: f
     3. Compute instantaneous amplitude (envelope)
     4. Return mean squared amplitude as power
     """
-    # Bandpass filter
-    filtered = bandpass_filter(data, low_freq, high_freq, fs)
-    
-    # Hilbert transform to get envelope
-    analytic_signal = hilbert(filtered, axis=0)
-    envelope = np.abs(analytic_signal)
-    
-    # Bandpower as mean squared amplitude
-    power = np.mean(envelope ** 2)
-    return float(power)
-
-
-def downsample(data: np.ndarray, factor: int) -> np.ndarray:
-    """Simple downsampling by taking every nth sample."""
-    return data[::factor]
+    try:
+        # Bandpass filter
+        filtered = bandpass_filter(data, low_freq, high_freq, fs)
+        
+        # Hilbert transform to get envelope
+        analytic_signal = hilbert(filtered, axis=0)
+        envelope = np.abs(analytic_signal)
+        
+        # Bandpower as mean squared amplitude
+        power = np.mean(envelope ** 2)
+        return float(power)
+    except Exception as e:
+        # Return 0 if filtering fails
+        return 0.0
 
 
 class EEGProcessor:
+    """
+    Process EEG data at native sample rate, output at reduced frequency.
+    
+    No downsampling - processes at full native rate (e.g., 250 Hz) to preserve
+    frequency content for bandpass filtering, but only outputs to client at
+    reduced interval (e.g., every 0.2s = 5 Hz output).
+    """
+    
     def __init__(
         self,
-        native_sample_rate: float = 250.0,
-        target_sample_rate: float = 50.0,
+        sample_rate: float = 250.0,
         window_duration: float = 1.0,
         output_interval: float = 0.2,
         alpha_low: float = 8.0,
@@ -98,8 +112,7 @@ class EEGProcessor:
         beta_threshold: float = 1.0,
         num_channels: int = 8,
     ):
-        self.native_sample_rate = native_sample_rate
-        self.target_sample_rate = target_sample_rate
+        self.sample_rate = sample_rate
         self.window_duration = window_duration
         self.output_interval = output_interval
         
@@ -115,44 +128,41 @@ class EEGProcessor:
         
         self.num_channels = num_channels
         
-        # Calculate buffer sizes
-        self.downsample_factor = int(native_sample_rate / target_sample_rate)
-        self.window_samples = int(target_sample_rate * window_duration)
-        self.output_samples = int(target_sample_rate * output_interval)
+        # Calculate buffer sizes at native rate
+        self.window_samples = int(sample_rate * window_duration)
+        self.output_samples = int(sample_rate * output_interval)
         
-        # Buffer for incoming samples (native rate)
-        self.native_buffer = deque(maxlen=int(native_sample_rate * window_duration * 2))
-        
-        # Buffer for downsampled data (sliding window)
+        # Buffer for processing (sliding window at native rate)
         self.process_buffer = deque(maxlen=self.window_samples)
         
         # Counter for output timing
         self.samples_since_output = 0
-        self.native_samples_count = 0
+        
+        # Validate frequency bands against Nyquist
+        nyquist = sample_rate / 2
+        if self.beta_high > nyquist:
+            send_message("status", 
+                         message=f"Warning: Beta high ({self.beta_high} Hz) exceeds Nyquist ({nyquist} Hz). Clamping to {nyquist - 1} Hz")
+            self.beta_high = nyquist - 1
         
         send_message("status", 
                      message=f"EEG Processor initialized",
-                     native_rate=native_sample_rate,
-                     target_rate=target_sample_rate,
+                     sample_rate=sample_rate,
                      window_duration=window_duration,
                      output_interval=output_interval,
-                     downsample_factor=self.downsample_factor,
-                     window_samples=self.window_samples)
+                     window_samples=self.window_samples,
+                     output_samples=self.output_samples,
+                     nyquist=nyquist)
     
     def add_sample(self, sample: list) -> dict | None:
         """
         Add a sample and return processed result if output interval reached.
         
-        Returns None if not enough data yet, or a dict with processed results.
+        Returns None if not enough data or not time to output yet.
         """
-        # Add to native buffer
-        self.native_buffer.append(sample[:self.num_channels])
-        self.native_samples_count += 1
-        
-        # Downsample: only keep every nth sample
-        if self.native_samples_count % self.downsample_factor == 0:
-            self.process_buffer.append(sample[:self.num_channels])
-            self.samples_since_output += 1
+        # Add to buffer at native rate
+        self.process_buffer.append(sample[:self.num_channels])
+        self.samples_since_output += 1
         
         # Check if we should output
         if self.samples_since_output >= self.output_samples and len(self.process_buffer) >= self.window_samples:
@@ -169,20 +179,23 @@ class EEGProcessor:
         # Average across channels for bandpower calculation
         avg_signal = np.mean(data, axis=1)
         
-        # Compute bandpower
-        alpha_power = compute_bandpower(avg_signal, self.target_sample_rate, self.alpha_low, self.alpha_high)
-        beta_power = compute_bandpower(avg_signal, self.target_sample_rate, self.beta_low, self.beta_high)
+        # Compute bandpower at native sample rate
+        alpha_power = compute_bandpower(avg_signal, self.sample_rate, self.alpha_low, self.alpha_high)
+        beta_power = compute_bandpower(avg_signal, self.sample_rate, self.beta_low, self.beta_high)
         
         # Determine concentration state
-        # Concentrated if either alpha or beta exceeds threshold
         is_concentrated = (alpha_power > self.alpha_threshold) or (beta_power > self.beta_threshold)
         signal = "Concentrated" if is_concentrated else "Not Concentrated"
         
         # Get latest sample for raw data display
         latest_sample = data[-1].tolist()
         
+        # Calculate mean for logging
+        mean_eeg = float(np.mean(latest_sample))
+        
         return {
             "data": latest_sample,
+            "mean_eeg": mean_eeg,
             "alpha_power": alpha_power,
             "beta_power": beta_power,
             "signal": signal,
@@ -202,10 +215,8 @@ def main():
                         help='Stream discovery timeout in seconds (default: 10)')
     
     # Signal processing settings
-    parser.add_argument('--native-rate', type=float, default=250.0,
-                        help='Native sample rate of LSL stream in Hz (default: 250)')
-    parser.add_argument('--target-rate', type=float, default=50.0,
-                        help='Target sample rate after downsampling in Hz (default: 50)')
+    parser.add_argument('--sample-rate', type=float, default=250.0,
+                        help='Sample rate of LSL stream in Hz (default: 250, auto-detected if available)')
     parser.add_argument('--window', type=float, default=1.0,
                         help='Window duration in seconds for bandpower calculation (default: 1.0)')
     parser.add_argument('--interval', type=float, default=0.2,
@@ -246,7 +257,7 @@ def main():
         # Get actual sample rate from stream if available
         actual_rate = stream_info.nominal_srate()
         if actual_rate > 0:
-            args.native_rate = actual_rate
+            args.sample_rate = actual_rate
         
         send_message("status", 
                      message="Connected to LSL stream",
@@ -255,10 +266,9 @@ def main():
                      channel_count=stream_info.channel_count(),
                      sample_rate=actual_rate)
         
-        # Initialize processor
+        # Initialize processor at native sample rate (no downsampling)
         processor = EEGProcessor(
-            native_sample_rate=args.native_rate,
-            target_sample_rate=args.target_rate,
+            sample_rate=args.sample_rate,
             window_duration=args.window,
             output_interval=args.interval,
             alpha_low=args.alpha_low,
@@ -281,6 +291,7 @@ def main():
                 if result:
                     send_message("data", 
                                  data=result["data"],
+                                 mean_eeg=result["mean_eeg"],
                                  alpha_power=result["alpha_power"],
                                  beta_power=result["beta_power"],
                                  signal=result["signal"],

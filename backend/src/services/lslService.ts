@@ -14,9 +14,8 @@ export interface LslConfig {
   timeout: number;
   pythonPath: string;
   
-  // Signal processing
-  nativeSampleRate: number;
-  targetSampleRate: number;
+  // Signal processing (no downsampling - process at native rate)
+  sampleRate: number;
   windowDuration: number;
   outputInterval: number;
   numEegChannels: number;
@@ -42,11 +41,10 @@ export const DEFAULT_LSL_CONFIG: LslConfig = {
   timeout: 10,
   pythonPath: 'python3',
   
-  // Signal processing - 250 Hz native, downsample to 50 Hz
-  nativeSampleRate: 250,
-  targetSampleRate: 50,
+  // Signal processing - process at native rate, output at reduced frequency
+  sampleRate: 250,          // Native sample rate (auto-detected from stream)
   windowDuration: 1.0,      // 1 second window for bandpower calculation
-  outputInterval: 0.2,      // Output every 200ms (5 Hz)
+  outputInterval: 0.2,      // Output every 200ms (5 Hz) to client
   numEegChannels: 8,
   
   // Frequency bands (Hz)
@@ -159,8 +157,7 @@ export class LslService {
         '--source-type', this.config.sourceType,
         '--source-value', this.config.sourceValue,
         '--timeout', this.config.timeout.toString(),
-        '--native-rate', this.config.nativeSampleRate.toString(),
-        '--target-rate', this.config.targetSampleRate.toString(),
+        '--sample-rate', this.config.sampleRate.toString(),
         '--window', this.config.windowDuration.toString(),
         '--interval', this.config.outputInterval.toString(),
         '--channels', this.config.numEegChannels.toString(),
@@ -173,7 +170,7 @@ export class LslService {
       ];
 
       console.log('[LSL] Config:', {
-        targetRate: this.config.targetSampleRate,
+        sampleRate: this.config.sampleRate,
         outputInterval: this.config.outputInterval,
         windowDuration: this.config.windowDuration,
         alphaThreshold: this.config.alphaThreshold,
