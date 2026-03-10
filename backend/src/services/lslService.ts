@@ -55,8 +55,8 @@ export const DEFAULT_LSL_CONFIG: LslConfig = {
   
   // Thresholds for sum of alpha + beta power
   // Concentrated when: alphaThreshold < (alpha + beta) < betaThreshold
-  alphaThreshold: 16.0,  // Min sum threshold
-  betaThreshold: 60.0,   // Max sum threshold
+  alphaThreshold: 30.0,  // Min sum threshold
+  betaThreshold: 50.0,   // Max sum threshold
 };
 
 /**
