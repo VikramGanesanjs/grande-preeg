@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { websocketService } from '../services/websocket';
+import { opponentSocketService } from '../services/opponentSocket';
 import { ConcentrationSignal, GameStatus, GameResults } from '../types';
 import { gameConfig } from '../constants/theme';
 
@@ -47,6 +48,11 @@ interface GameState {
   alphaPower: number | null;
   betaPower: number | null;
   powerSum: number | null;
+  
+  // Multiplayer state
+  opponentPosition: number;
+  opponentStatus: 'idle' | 'playing' | 'finished' | 'disconnected';
+  isMultiplayer: boolean;
 }
 
 interface GameActions {
@@ -88,6 +94,12 @@ interface GameActions {
   
   // Internal: set status
   setStatus: (status: GameStatus) => void;
+  
+  // Multiplayer: set opponent position
+  setOpponentPosition: (position: number, status: 'idle' | 'playing' | 'finished') => void;
+  
+  // Multiplayer: enable/disable multiplayer mode
+  setMultiplayer: (enabled: boolean) => void;
 }
 
 type GameStore = GameState & GameActions;
@@ -109,9 +121,24 @@ const initialState: GameState = {
   alphaPower: null,
   betaPower: null,
   powerSum: null,
+  opponentPosition: 0,
+  opponentStatus: 'disconnected',
+  isMultiplayer: false,
 };
 
 export const useGameStore = create<GameStore>((set, get) => {
+  // Set up opponent position handler for multiplayer
+  opponentSocketService.onPosition((data) => {
+    set({
+      opponentPosition: data.position,
+      opponentStatus: data.status,
+    });
+  });
+
+  opponentSocketService.onDisconnect(() => {
+    set({ opponentStatus: 'disconnected' });
+  });
+
   // Set up WebSocket message handler
   websocketService.onMessage((message) => {
     const state = get();
@@ -271,6 +298,12 @@ export const useGameStore = create<GameStore>((set, get) => {
         concentrationStreak: 0, // Reset streak after advancement
       });
       
+      // Send position update to server for multiplayer
+      websocketService.send('update_position', {
+        position: newPosition,
+        status: newPosition >= 100 ? 'finished' : 'playing',
+      });
+      
       // Check if race is finished
       if (newPosition >= 100) {
         get().endGame();
@@ -324,6 +357,17 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     setStatus: (status: GameStatus) => {
       set({ status });
+    },
+
+    setOpponentPosition: (position: number, status: 'idle' | 'playing' | 'finished') => {
+      set({ opponentPosition: position, opponentStatus: status });
+    },
+
+    setMultiplayer: (enabled: boolean) => {
+      set({ isMultiplayer: enabled });
+      if (!enabled) {
+        set({ opponentPosition: 0, opponentStatus: 'disconnected' });
+      }
     },
   };
 });

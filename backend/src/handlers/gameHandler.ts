@@ -12,6 +12,10 @@ import {
 // Store active sessions
 const sessions = new Map<string, GameSession>();
 
+// Store current player position for multiplayer (broadcast to opponents)
+let currentPlayerPosition = 0;
+let currentPlayerStatus: 'idle' | 'playing' | 'finished' = 'idle';
+
 /**
  * Generate a unique session ID
  */
@@ -67,7 +71,7 @@ export function setupGameHandlers(io: Server, socket: Socket): void {
   // Handle incoming messages
   socket.on('message', (data: any) => {
     try {
-      handleMessage(socket, data);
+      handleMessage(io, socket, data);
     } catch (error) {
       console.error('Error handling message:', error);
       const errorMessage: ErrorMessage = {
@@ -79,6 +83,25 @@ export function setupGameHandlers(io: Server, socket: Socket): void {
       };
       socket.emit('message', errorMessage);
     }
+  });
+
+  // Handle opponent subscribing to this player's position updates
+  socket.on('subscribe_opponent', () => {
+    socket.join('opponent_subscribers');
+    console.log(`[Multiplayer] Opponent subscribed: ${socket.id}`);
+    
+    // Send current position immediately
+    socket.emit('opponent_position', {
+      position: currentPlayerPosition,
+      status: currentPlayerStatus,
+      timestamp: Date.now(),
+    });
+  });
+
+  // Handle opponent unsubscribing
+  socket.on('unsubscribe_opponent', () => {
+    socket.leave('opponent_subscribers');
+    console.log(`[Multiplayer] Opponent unsubscribed: ${socket.id}`);
   });
 
   // Handle disconnection
@@ -97,14 +120,28 @@ export function setupGameHandlers(io: Server, socket: Socket): void {
 }
 
 /**
+ * Broadcast player position to all subscribed opponents
+ */
+function broadcastPlayerPosition(io: Server, position: number, status: string): void {
+  currentPlayerPosition = position;
+  currentPlayerStatus = status as any;
+  
+  io.to('opponent_subscribers').emit('opponent_position', {
+    position,
+    status,
+    timestamp: Date.now(),
+  });
+}
+
+/**
  * Handle incoming WebSocket messages
  */
-function handleMessage(socket: Socket, data: any): void {
+function handleMessage(io: Server, socket: Socket, data: any): void {
   const { type, payload } = data;
 
   switch (type) {
     case 'start_game':
-      handleStartGame(socket, payload);
+      handleStartGame(io, socket, payload);
       break;
 
     case 'pause_game':
@@ -116,7 +153,7 @@ function handleMessage(socket: Socket, data: any): void {
       break;
 
     case 'end_game':
-      handleEndGame(socket, payload);
+      handleEndGame(io, socket, payload);
       break;
 
     case 'ping':
@@ -131,15 +168,30 @@ function handleMessage(socket: Socket, data: any): void {
       handleGetSignalMode(socket);
       break;
 
+    case 'update_position':
+      handleUpdatePosition(io, socket, payload);
+      break;
+
     default:
       console.warn(`Unknown message type: ${type}`);
   }
 }
 
 /**
+ * Handle player position update (for multiplayer)
+ */
+function handleUpdatePosition(io: Server, socket: Socket, payload: any): void {
+  const { position, status } = payload;
+  
+  if (typeof position === 'number' && position >= 0 && position <= 100) {
+    broadcastPlayerPosition(io, position, status || 'playing');
+  }
+}
+
+/**
  * Handle game start request
  */
-function handleStartGame(socket: Socket, payload: any): void {
+function handleStartGame(io: Server, socket: Socket, payload: any): void {
   const { config } = payload;
   const sessionId = generateSessionId();
 
@@ -168,6 +220,9 @@ function handleStartGame(socket: Socket, payload: any): void {
 
   // Start signal stream
   startSignalStream(socket, session);
+
+  // Broadcast initial position for multiplayer
+  broadcastPlayerPosition(io, 0, 'playing');
 
   console.log(`Game started: ${sessionId} with threshold ${session.config.concentrationThreshold}`);
 }
@@ -205,7 +260,7 @@ function handleResumeGame(socket: Socket, payload: any): void {
 /**
  * Handle game end request
  */
-function handleEndGame(socket: Socket, payload: any): void {
+function handleEndGame(io: Server, socket: Socket, payload: any): void {
   const session = findSessionBySocket(socket.id);
   if (!session) {
     sendError(socket, 'NO_SESSION', 'No active game session found');
@@ -223,6 +278,9 @@ function handleEndGame(socket: Socket, payload: any): void {
     },
   };
   socket.emit('message', endMessage);
+
+  // Broadcast final position for multiplayer
+  broadcastPlayerPosition(io, currentPlayerPosition, 'finished');
 
   // Clean up session
   sessions.delete(session.sessionId);

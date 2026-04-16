@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View, Text, Switch, TextInput, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../constants/theme';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useConnectionStore } from '../stores/connectionStore';
+import { useGameStore } from '../stores/gameStore';
+import { opponentSocketService } from '../services/opponentSocket';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -14,11 +16,15 @@ export default function SettingsScreen() {
   const {
     concentrationThreshold,
     serverUrl,
+    opponentServerUrl,
+    multiplayerEnabled,
     soundEnabled,
     hapticsEnabled,
     devModeEnabled,
     setConcentrationThreshold,
     setServerUrl,
+    setOpponentServerUrl,
+    setMultiplayerEnabled,
     setSoundEnabled,
     setHapticsEnabled,
     setDevModeEnabled,
@@ -28,6 +34,10 @@ export default function SettingsScreen() {
   const connect = useConnectionStore((state) => state.connect);
   const disconnect = useConnectionStore((state) => state.disconnect);
   
+  // Game state for multiplayer
+  const setMultiplayer = useGameStore((state) => state.setMultiplayer);
+  const opponentStatus = useGameStore((state) => state.opponentStatus);
+  
   const handleThresholdChange = (value: 3 | 5) => {
     setConcentrationThreshold(value);
   };
@@ -36,10 +46,42 @@ export default function SettingsScreen() {
     setServerUrl(url);
   };
   
+  const handleOpponentServerUrlChange = (url: string) => {
+    setOpponentServerUrl(url);
+  };
+  
+  const handleMultiplayerToggle = (enabled: boolean) => {
+    setMultiplayerEnabled(enabled);
+    setMultiplayer(enabled);
+    
+    if (enabled && opponentServerUrl) {
+      opponentSocketService.connect(opponentServerUrl);
+    } else {
+      opponentSocketService.disconnect();
+    }
+  };
+  
+  const handleConnectOpponent = () => {
+    if (opponentServerUrl) {
+      opponentSocketService.disconnect();
+      setTimeout(() => opponentSocketService.connect(opponentServerUrl), 500);
+    }
+  };
+  
   const handleReconnect = () => {
     disconnect();
     setTimeout(() => connect(serverUrl), 500);
   };
+  
+  // Connect to opponent server when multiplayer is enabled and URL changes
+  useEffect(() => {
+    if (multiplayerEnabled && opponentServerUrl) {
+      opponentSocketService.connect(opponentServerUrl);
+    }
+    return () => {
+      // Don't disconnect on unmount to keep connection during navigation
+    };
+  }, []);
   
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -96,10 +138,78 @@ export default function SettingsScreen() {
           </View>
         </View>
         
+        {/* Multiplayer Settings Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Multiplayer</Text>
+          
+          {/* Multiplayer Toggle */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="people" size={20} color={colors.secondary} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Enable Multiplayer</Text>
+                <Text style={styles.settingDescription}>
+                  Race against another player
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={multiplayerEnabled}
+              onValueChange={handleMultiplayerToggle}
+              trackColor={{ false: colors.surfaceLight, true: colors.primaryLight }}
+              thumbColor={multiplayerEnabled ? colors.primary : colors.textMuted}
+            />
+          </View>
+          
+          {/* Opponent Server URL */}
+          {multiplayerEnabled && (
+            <View style={styles.settingRowVertical}>
+              <View style={styles.settingInfo}>
+                <Ionicons name="link" size={20} color={colors.textMuted} />
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingLabel}>Opponent Server URL</Text>
+                  <Text style={styles.settingDescription}>
+                    Connect to opponent's server
+                  </Text>
+                </View>
+              </View>
+              <TextInput
+                style={styles.textInput}
+                value={opponentServerUrl}
+                onChangeText={handleOpponentServerUrlChange}
+                placeholder="http://opponent-ip:3001"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              <View style={styles.multiplayerStatus}>
+                <View style={[
+                  styles.statusDot,
+                  opponentStatus !== 'disconnected' ? styles.statusDotConnected : styles.statusDotDisconnected
+                ]} />
+                <Text style={styles.statusText}>
+                  {opponentStatus === 'disconnected' ? 'Not connected' : `Connected (${opponentStatus})`}
+                </Text>
+              </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.reconnectButton,
+                  pressed && styles.reconnectButtonPressed,
+                ]}
+                onPress={handleConnectOpponent}
+              >
+                <Ionicons name="refresh" size={16} color={colors.primary} />
+                <Text style={styles.reconnectText}>Connect to Opponent</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+
         {/* Feedback Settings Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Feedback</Text>
-          
+
           {/* Sound */}
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -309,6 +419,28 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.medium,
     color: colors.primary,
+  },
+  multiplayerStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: spacing.xs,
+  },
+  statusDotConnected: {
+    backgroundColor: colors.success,
+  },
+  statusDotDisconnected: {
+    backgroundColor: colors.error,
+  },
+  statusText: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.textSecondary,
   },
   footer: {
     marginTop: 'auto',

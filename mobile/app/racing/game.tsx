@@ -30,6 +30,9 @@ export default function GameScreen() {
     alphaPower,
     betaPower,
     powerSum,
+    opponentPosition,
+    opponentStatus,
+    isMultiplayer,
   } = useGameStore();
   
   // Settings
@@ -119,6 +122,8 @@ export default function GameScreen() {
         <RaceTrack
           carPosition={carPosition}
           isConcentrated={isConcentrated}
+          opponentPosition={opponentPosition}
+          showOpponent={isMultiplayer && opponentStatus !== 'disconnected'}
         />
       </View>
       

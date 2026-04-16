@@ -9,6 +9,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 interface RaceTrackProps {
   carPosition: number; // 0-100 percentage
   isConcentrated: boolean;
+  opponentPosition?: number; // 0-100 percentage (optional for multiplayer)
+  showOpponent?: boolean;
   trackWidth?: number;
   trackHeight?: number;
 }
@@ -16,8 +18,10 @@ interface RaceTrackProps {
 export function RaceTrack({
   carPosition,
   isConcentrated,
+  opponentPosition = 0,
+  showOpponent = false,
   trackWidth = SCREEN_WIDTH - 48,
-  trackHeight = 100,
+  trackHeight = 120,  // Increased height for two cars
 }: RaceTrackProps) {
   const laneCount = 5;
   const laneWidth = trackWidth / laneCount;
@@ -118,14 +122,39 @@ export function RaceTrack({
           </G>
         </Svg>
         
-        {/* Car on track */}
-        <View style={styles.carContainer}>
-          <Car
-            position={carPosition}
-            isConcentrated={isConcentrated}
-            color={colors.playerCar}
-          />
-        </View>
+        {/* Cars on track */}
+        {showOpponent ? (
+          <>
+            {/* Opponent car (top lane) */}
+            <View style={styles.opponentCarContainer}>
+              <Car
+                position={opponentPosition}
+                isConcentrated={false}
+                color={colors.opponentCar}
+                size={50}
+              />
+            </View>
+            
+            {/* Player car (bottom lane) */}
+            <View style={styles.playerCarContainer}>
+              <Car
+                position={carPosition}
+                isConcentrated={isConcentrated}
+                color={colors.playerCar}
+                size={50}
+              />
+            </View>
+          </>
+        ) : (
+          /* Single player mode - centered car */
+          <View style={styles.carContainer}>
+            <Car
+              position={carPosition}
+              isConcentrated={isConcentrated}
+              color={colors.playerCar}
+            />
+          </View>
+        )}
       </View>
       
       {/* Progress markers */}
@@ -170,6 +199,20 @@ const styles = StyleSheet.create({
     left: 20,
     right: 25,
     transform: [{ translateY: -18 }],
+  },
+  opponentCarContainer: {
+    position: 'absolute',
+    top: '25%',
+    left: 20,
+    right: 25,
+    transform: [{ translateY: -15 }],
+  },
+  playerCarContainer: {
+    position: 'absolute',
+    top: '75%',
+    left: 20,
+    right: 25,
+    transform: [{ translateY: -15 }],
   },
   progressMarkers: {
     flexDirection: 'row',

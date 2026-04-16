@@ -9,6 +9,12 @@ interface SettingsState {
   // Server URL for development
   serverUrl: string;
   
+  // Opponent server URL for multiplayer
+  opponentServerUrl: string;
+  
+  // Multiplayer mode enabled
+  multiplayerEnabled: boolean;
+  
   // Sound enabled
   soundEnabled: boolean;
   
@@ -25,6 +31,8 @@ interface SettingsState {
 interface SettingsActions {
   setConcentrationThreshold: (threshold: 3 | 5) => void;
   setServerUrl: (url: string) => void;
+  setOpponentServerUrl: (url: string) => void;
+  setMultiplayerEnabled: (enabled: boolean) => void;
   setSoundEnabled: (enabled: boolean) => void;
   setHapticsEnabled: (enabled: boolean) => void;
   setHasCompletedTutorial: (completed: boolean) => void;
@@ -37,6 +45,8 @@ type SettingsStore = SettingsState & SettingsActions;
 const defaultSettings: SettingsState = {
   concentrationThreshold: 3,
   serverUrl: 'http://localhost:3001',
+  opponentServerUrl: '',
+  multiplayerEnabled: false,
   soundEnabled: true,
   hapticsEnabled: true,
   hasCompletedTutorial: false,
@@ -54,6 +64,14 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
 
   setServerUrl: (url: string) => {
     set({ serverUrl: url });
+  },
+
+  setOpponentServerUrl: (url: string) => {
+    set({ opponentServerUrl: url });
+  },
+
+  setMultiplayerEnabled: (enabled: boolean) => {
+    set({ multiplayerEnabled: enabled });
   },
 
   setSoundEnabled: (enabled: boolean) => {
