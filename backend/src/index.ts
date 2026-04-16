@@ -1,4 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load .env from backend directory (parent of src/)
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';

@@ -34,12 +34,19 @@ export interface LslConfig {
 /**
  * Default configuration
  */
+/**
+ * Get default Python path - reads env var at runtime, not module load time
+ */
+function getDefaultPythonPath(): string {
+  return process.env.PYTHON_PATH || 'python';
+}
+
 export const DEFAULT_LSL_CONFIG: LslConfig = {
   // LSL connection
   sourceType: 'type',
   sourceValue: 'Data',
   timeout: 10,
-  pythonPath: process.env.PYTHON_PATH || 'python',
+  pythonPath: '', // Will be set at runtime via getDefaultPythonPath()
   
   // Signal processing - process at native rate, output at reduced frequency
   sampleRate: 250,          // Native sample rate (auto-detected from stream)
@@ -103,6 +110,11 @@ export class LslService {
 
   constructor(config: Partial<LslConfig> = {}) {
     this.config = { ...DEFAULT_LSL_CONFIG, ...config };
+    // Apply runtime default for pythonPath if not explicitly set
+    if (!this.config.pythonPath) {
+      this.config.pythonPath = getDefaultPythonPath();
+    }
+    console.log('[LSL] Python path configured:', this.config.pythonPath, '(from env:', process.env.PYTHON_PATH || 'not set', ')');
   }
 
   /**
