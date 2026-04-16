@@ -39,7 +39,7 @@ export const DEFAULT_LSL_CONFIG: LslConfig = {
   sourceType: 'type',
   sourceValue: 'Data',
   timeout: 10,
-  pythonPath: process.env.PYTHON_PATH || 'python3',
+  pythonPath: process.env.PYTHON_PATH || 'python',
   
   // Signal processing - process at native rate, output at reduced frequency
   sampleRate: 250,          // Native sample rate (auto-detected from stream)
@@ -179,6 +179,8 @@ export class LslService {
         alphaThreshold: this.config.alphaThreshold,
         betaThreshold: this.config.betaThreshold,
       });
+
+      console.log('[LSL] Running command:', this.config.pythonPath, args.join(' '));
 
       this.pythonProcess = spawn(this.config.pythonPath, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
