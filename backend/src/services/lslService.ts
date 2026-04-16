@@ -39,7 +39,7 @@ export const DEFAULT_LSL_CONFIG: LslConfig = {
   sourceType: 'type',
   sourceValue: 'Data',
   timeout: 10,
-  pythonPath: 'python3',
+  pythonPath: process.env.PYTHON_PATH || 'python3',
   
   // Signal processing - process at native rate, output at reduced frequency
   sampleRate: 250,          // Native sample rate (auto-detected from stream)
