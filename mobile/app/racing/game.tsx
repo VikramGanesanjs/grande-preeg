@@ -44,6 +44,11 @@ export default function GameScreen() {
   // Settings
   const hapticsEnabled = useSettingsStore((state) => state.hapticsEnabled);
   const devModeEnabled = useSettingsStore((state) => state.devModeEnabled);
+
+  // Debug logging for multiplayer state
+  useEffect(() => {
+    console.log('[Game] Multiplayer state:', { isMultiplayer, opponentStatus, opponentPosition, inLobby });
+  }, [isMultiplayer, opponentStatus, opponentPosition, inLobby]);
   
   // Track previous advances for haptic feedback
   const prevAdvancesRef = React.useRef(totalAdvances);

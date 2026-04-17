@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, View, Dimensions } from 'react-native';
+import { StyleSheet, View, Dimensions, Text } from 'react-native';
 import Svg, { Rect, Line, Defs, Pattern, G } from 'react-native-svg';
-import { colors } from '../../constants/theme';
+import { colors, typography, spacing } from '../../constants/theme';
 import { Car } from './Car';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -126,23 +126,33 @@ export function RaceTrack({
         {showOpponent ? (
           <>
             {/* Opponent car (top lane) */}
-            <View style={styles.opponentCarContainer}>
-              <Car
-                position={opponentPosition}
-                isConcentrated={false}
-                color={colors.opponentCar}
-                size={50}
-              />
+            <View style={styles.opponentLaneContainer}>
+              <View style={styles.carLabelContainer}>
+                <Text style={[styles.carLabel, styles.opponentLabel]}>Opponent</Text>
+              </View>
+              <View style={styles.opponentCarContainer}>
+                <Car
+                  position={opponentPosition}
+                  isConcentrated={false}
+                  color={colors.opponentCar}
+                  size={45}
+                />
+              </View>
             </View>
             
             {/* Player car (bottom lane) */}
-            <View style={styles.playerCarContainer}>
-              <Car
-                position={carPosition}
-                isConcentrated={isConcentrated}
-                color={colors.playerCar}
-                size={50}
-              />
+            <View style={styles.playerLaneContainer}>
+              <View style={styles.carLabelContainer}>
+                <Text style={[styles.carLabel, styles.playerLabel]}>You</Text>
+              </View>
+              <View style={styles.playerCarContainer}>
+                <Car
+                  position={carPosition}
+                  isConcentrated={isConcentrated}
+                  color={colors.playerCar}
+                  size={45}
+                />
+              </View>
             </View>
           </>
         ) : (
@@ -200,19 +210,55 @@ const styles = StyleSheet.create({
     right: 25,
     transform: [{ translateY: -18 }],
   },
+  opponentLaneContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
+    height: '45%',
+  },
+  playerLaneContainer: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    height: '45%',
+  },
+  carLabelContainer: {
+    position: 'absolute',
+    left: 4,
+    top: 2,
+    zIndex: 10,
+  },
+  carLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  opponentLabel: {
+    backgroundColor: colors.opponentCar,
+    color: '#fff',
+  },
+  playerLabel: {
+    backgroundColor: colors.playerCar,
+    color: '#fff',
+  },
   opponentCarContainer: {
     position: 'absolute',
-    top: '25%',
+    top: '50%',
     left: 20,
     right: 25,
-    transform: [{ translateY: -15 }],
+    transform: [{ translateY: -12 }],
   },
   playerCarContainer: {
     position: 'absolute',
-    top: '75%',
+    top: '50%',
     left: 20,
     right: 25,
-    transform: [{ translateY: -15 }],
+    transform: [{ translateY: -12 }],
   },
   progressMarkers: {
     flexDirection: 'row',
