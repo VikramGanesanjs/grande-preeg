@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback } from 'react';
-import { StyleSheet, View, BackHandler, Text } from 'react-native';
+import React, { useEffect, useCallback, useState } from 'react';
+import { StyleSheet, View, BackHandler, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -33,7 +33,13 @@ export default function GameScreen() {
     opponentPosition,
     opponentStatus,
     isMultiplayer,
+    isLocalReady,
+    isOpponentReady,
+    setLocalReady,
   } = useGameStore();
+  
+  // Track if we're in lobby mode (multiplayer waiting for both players)
+  const [inLobby, setInLobby] = useState(isMultiplayer);
   
   // Settings
   const hapticsEnabled = useSettingsStore((state) => state.hapticsEnabled);
@@ -42,17 +48,41 @@ export default function GameScreen() {
   // Track previous advances for haptic feedback
   const prevAdvancesRef = React.useRef(totalAdvances);
   
-  // Start game on mount
+  // Start game on mount (if not multiplayer) or when both players ready (if multiplayer)
   useEffect(() => {
-    startGame();
+    if (!isMultiplayer) {
+      // Single player - start immediately
+      startGame();
+    }
     
     return () => {
       // Clean up on unmount
       if (status === 'playing' || status === 'paused') {
         endGame();
       }
+      // Reset ready state when leaving
+      if (isMultiplayer) {
+        setLocalReady(false);
+      }
     };
   }, []);
+
+  // Auto-start when both players are ready in multiplayer
+  useEffect(() => {
+    if (isMultiplayer && inLobby && isLocalReady && isOpponentReady) {
+      // Both players ready - start the game!
+      setInLobby(false);
+      startGame();
+    }
+  }, [isMultiplayer, inLobby, isLocalReady, isOpponentReady, startGame]);
+
+  // Handle ready button press
+  const handleReadyPress = useCallback(() => {
+    if (hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setLocalReady(!isLocalReady);
+  }, [hapticsEnabled, isLocalReady, setLocalReady]);
   
   // Haptic feedback when car advances
   useEffect(() => {
@@ -104,6 +134,56 @@ export default function GameScreen() {
   
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Multiplayer Lobby overlay */}
+      {isMultiplayer && inLobby && (
+        <View style={styles.lobbyOverlay}>
+          <View style={styles.lobbyContent}>
+            <Text style={styles.lobbyTitle}>Multiplayer Race</Text>
+            <Text style={styles.lobbySubtitle}>Waiting for both players to be ready</Text>
+            
+            <View style={styles.lobbyPlayers}>
+              {/* Local player status */}
+              <View style={styles.lobbyPlayer}>
+                <View style={[styles.lobbyStatusDot, isLocalReady && styles.lobbyStatusReady]} />
+                <Text style={styles.lobbyPlayerLabel}>You</Text>
+                <Text style={styles.lobbyPlayerStatus}>
+                  {isLocalReady ? 'Ready!' : 'Not Ready'}
+                </Text>
+              </View>
+              
+              {/* Opponent status */}
+              <View style={styles.lobbyPlayer}>
+                <View style={[styles.lobbyStatusDot, isOpponentReady && styles.lobbyStatusReady]} />
+                <Text style={styles.lobbyPlayerLabel}>Opponent</Text>
+                <Text style={styles.lobbyPlayerStatus}>
+                  {opponentStatus === 'disconnected' ? 'Disconnected' : 
+                   isOpponentReady ? 'Ready!' : 'Not Ready'}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Ready button */}
+            <TouchableOpacity
+              style={[styles.readyButton, isLocalReady && styles.readyButtonActive]}
+              onPress={handleReadyPress}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.readyButtonText, isLocalReady && styles.readyButtonTextActive]}>
+                {isLocalReady ? 'Cancel Ready' : 'Ready!'}
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Waiting indicator when both not ready yet */}
+            {isLocalReady && !isOpponentReady && (
+              <View style={styles.waitingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.waitingText}>Waiting for opponent...</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+      
       {/* Countdown overlay */}
       {status === 'countdown' && <Countdown value={countdown} />}
       
@@ -312,5 +392,93 @@ const styles = StyleSheet.create({
   },
   devModeValueActive: {
     color: colors.concentrated,
+  },
+  // Multiplayer lobby styles
+  lobbyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  lobbyContent: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+  },
+  lobbyTitle: {
+    fontSize: typography.fontSizes['2xl'],
+    fontWeight: typography.fontWeights.bold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  lobbySubtitle: {
+    fontSize: typography.fontSizes.md,
+    color: colors.textMuted,
+    marginBottom: spacing.xl,
+    textAlign: 'center',
+  },
+  lobbyPlayers: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  lobbyPlayer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  lobbyStatusDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  lobbyStatusReady: {
+    backgroundColor: colors.concentrated,
+    borderColor: colors.concentrated,
+  },
+  lobbyPlayerLabel: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  lobbyPlayerStatus: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.textMuted,
+  },
+  readyButton: {
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl * 2,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    marginBottom: spacing.lg,
+  },
+  readyButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  readyButtonText: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.primary,
+  },
+  readyButtonTextActive: {
+    color: colors.background,
+  },
+  waitingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  waitingText: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.textMuted,
   },
 });

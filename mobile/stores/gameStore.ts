@@ -53,6 +53,10 @@ interface GameState {
   opponentPosition: number;
   opponentStatus: 'idle' | 'playing' | 'finished' | 'disconnected';
   isMultiplayer: boolean;
+  
+  // Multiplayer ready state (for lobby synchronization)
+  isLocalReady: boolean;
+  isOpponentReady: boolean;
 }
 
 interface GameActions {
@@ -100,6 +104,12 @@ interface GameActions {
   
   // Multiplayer: enable/disable multiplayer mode
   setMultiplayer: (enabled: boolean) => void;
+  
+  // Multiplayer: set local ready state (sends to server)
+  setLocalReady: (ready: boolean) => void;
+  
+  // Multiplayer: set opponent ready state (from server)
+  setOpponentReady: (ready: boolean) => void;
 }
 
 type GameStore = GameState & GameActions;
@@ -124,6 +134,8 @@ const initialState: GameState = {
   opponentPosition: 0,
   opponentStatus: 'disconnected',
   isMultiplayer: false,
+  isLocalReady: false,
+  isOpponentReady: false,
 };
 
 export const useGameStore = create<GameStore>((set, get) => {
@@ -136,7 +148,12 @@ export const useGameStore = create<GameStore>((set, get) => {
   });
 
   opponentSocketService.onDisconnect(() => {
-    set({ opponentStatus: 'disconnected' });
+    set({ opponentStatus: 'disconnected', isOpponentReady: false });
+  });
+
+  // Set up opponent ready handler for multiplayer lobby
+  opponentSocketService.onReady((data) => {
+    set({ isOpponentReady: data.ready });
   });
 
   // Set up WebSocket message handler
@@ -366,8 +383,18 @@ export const useGameStore = create<GameStore>((set, get) => {
     setMultiplayer: (enabled: boolean) => {
       set({ isMultiplayer: enabled });
       if (!enabled) {
-        set({ opponentPosition: 0, opponentStatus: 'disconnected' });
+        set({ opponentPosition: 0, opponentStatus: 'disconnected', isLocalReady: false, isOpponentReady: false });
       }
+    },
+
+    setLocalReady: (ready: boolean) => {
+      set({ isLocalReady: ready });
+      // Send ready state to own server (which broadcasts to opponent)
+      websocketService.send('set_multiplayer_ready', { ready });
+    },
+
+    setOpponentReady: (ready: boolean) => {
+      set({ isOpponentReady: ready });
     },
   };
 });

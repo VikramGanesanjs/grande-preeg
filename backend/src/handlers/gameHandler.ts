@@ -16,6 +16,9 @@ const sessions = new Map<string, GameSession>();
 let currentPlayerPosition = 0;
 let currentPlayerStatus: 'idle' | 'playing' | 'finished' = 'idle';
 
+// Multiplayer ready state
+let isMultiplayerReady = false;
+
 /**
  * Generate a unique session ID
  */
@@ -96,6 +99,12 @@ export function setupGameHandlers(io: Server, socket: Socket): void {
       status: currentPlayerStatus,
       timestamp: Date.now(),
     });
+    
+    // Send current ready state
+    socket.emit('opponent_ready', {
+      ready: isMultiplayerReady,
+      timestamp: Date.now(),
+    });
   });
 
   // Handle opponent unsubscribing
@@ -172,6 +181,10 @@ function handleMessage(io: Server, socket: Socket, data: any): void {
       handleUpdatePosition(io, socket, payload);
       break;
 
+    case 'set_multiplayer_ready':
+      handleSetMultiplayerReady(io, socket, payload);
+      break;
+
     default:
       console.warn(`Unknown message type: ${type}`);
   }
@@ -186,6 +199,21 @@ function handleUpdatePosition(io: Server, socket: Socket, payload: any): void {
   if (typeof position === 'number' && position >= 0 && position <= 100) {
     broadcastPlayerPosition(io, position, status || 'playing');
   }
+}
+
+/**
+ * Handle multiplayer ready state update
+ */
+function handleSetMultiplayerReady(io: Server, socket: Socket, payload: any): void {
+  const { ready } = payload;
+  isMultiplayerReady = !!ready;
+  console.log(`[Multiplayer] Player ready state: ${isMultiplayerReady}`);
+  
+  // Broadcast to all subscribed opponents
+  io.to('opponent_subscribers').emit('opponent_ready', {
+    ready: isMultiplayerReady,
+    timestamp: Date.now(),
+  });
 }
 
 /**
@@ -281,6 +309,13 @@ function handleEndGame(io: Server, socket: Socket, payload: any): void {
 
   // Broadcast final position for multiplayer
   broadcastPlayerPosition(io, currentPlayerPosition, 'finished');
+
+  // Reset multiplayer ready state
+  isMultiplayerReady = false;
+  io.to('opponent_subscribers').emit('opponent_ready', {
+    ready: false,
+    timestamp: Date.now(),
+  });
 
   // Clean up session
   sessions.delete(session.sessionId);

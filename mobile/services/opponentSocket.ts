@@ -6,13 +6,20 @@ interface OpponentPositionData {
   timestamp: number;
 }
 
+interface OpponentReadyData {
+  ready: boolean;
+  timestamp: number;
+}
+
 type PositionHandler = (data: OpponentPositionData) => void;
+type ReadyHandler = (data: OpponentReadyData) => void;
 type ConnectionHandler = () => void;
 
 class OpponentSocketService {
   private socket: Socket | null = null;
   private serverUrl: string | null = null;
   private positionHandlers: Set<PositionHandler> = new Set();
+  private readyHandlers: Set<ReadyHandler> = new Set();
   private connectHandlers: Set<ConnectionHandler> = new Set();
   private disconnectHandlers: Set<ConnectionHandler> = new Set();
   private isConnected = false;
@@ -82,6 +89,14 @@ class OpponentSocketService {
   }
 
   /**
+   * Register handler for opponent ready state updates
+   */
+  onReady(handler: ReadyHandler): () => void {
+    this.readyHandlers.add(handler);
+    return () => this.readyHandlers.delete(handler);
+  }
+
+  /**
    * Register handler for connection events
    */
   onConnect(handler: ConnectionHandler): () => void {
@@ -124,6 +139,12 @@ class OpponentSocketService {
     // Listen for opponent position updates
     this.socket.on('opponent_position', (data: OpponentPositionData) => {
       this.positionHandlers.forEach((handler) => handler(data));
+    });
+
+    // Listen for opponent ready state updates
+    this.socket.on('opponent_ready', (data: OpponentReadyData) => {
+      console.log('[Opponent] Ready state update:', data.ready);
+      this.readyHandlers.forEach((handler) => handler(data));
     });
   }
 }
