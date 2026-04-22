@@ -1,5 +1,5 @@
 // Signal types
-export type ConcentrationSignal = 'Concentrated' | 'Not Concentrated';
+export type ConcentrationSignal = 'Concentrated' | 'Not Concentrated' ;
 
 // Raw EEG data from LSL stream
 export interface EegDataMessage {

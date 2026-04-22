@@ -11,6 +11,8 @@ import cors from 'cors';
 import { setupGameHandlers } from './handlers/gameHandler';
 import { signalGenerator, SignalGenerator, SignalMode } from './services/signalGenerator';
 import { lslService } from './services/lslService';
+import { neuroJackBridgeService } from './services/neuroJackBridgeService';
+
 
 const PORT = process.env.PORT || 3001;
 
@@ -173,6 +175,8 @@ const io = new Server(httpServer, {
 
 // Connect LSL service to Socket.IO for emitting EEG data
 lslService.setSocketServer(io);
+neuroJackBridgeService.setSocketServer(io);
+neuroJackBridgeService.start();
 
 // Handle socket connections
 io.on('connection', (socket) => {

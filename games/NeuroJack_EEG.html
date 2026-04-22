@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroJack — SSVEP BCI Slapjack</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0F172A;
+    --panel: #1E293B;
+    --surface-light: #334155;
+    --border: #334155;
+    --primary: #3B82F6;
+    --primary-dark: #2563EB;
+    --primary-light: #60A5FA;
+    --secondary: #14B8A6;
+    --concentrated: #22C55E;
+    --warning: #F59E0B;
+    --error: #EF4444;
+    --white: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --card-bg: #F5F0E4;
+    --jack-gold: #F59E0B;
+    --slap-red: #7f1d1d;
+    --slap-red-hover: #991b1b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Layout */
+  #app {
+    display: grid;
+    grid-template-columns: 200px 1fr 200px;
+    grid-template-rows: 52px 1fr 180px;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* Header */
+  #header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    position: relative;
+    z-index: 10;
+  }
+
+  #logo {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--primary);
+    text-transform: uppercase;
+  }
+  #logo span {
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-left: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
+  }
+
+  .header-stats { display: flex; gap: 24px; align-items: center; }
+
+  .stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--bg);
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .stat-label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+  }
+  .stat-value {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--primary);
+    letter-spacing: 1px;
+    line-height: 1.2;
+  }
+  .stat-value.amber { color: var(--warning); }
+  .stat-value.red { color: var(--error); }
+  .stat-value.green { color: var(--concentrated); }
+
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--primary);
+    text-transform: uppercase;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+  }
+
+  /* Left panel */
+  #left-panel {
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #card-log-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    scroll-behavior: smooth;
+  }
+  #card-log-list::-webkit-scrollbar { width: 3px; }
+  #card-log-list::-webkit-scrollbar-thumb { background: var(--surface-light); border-radius: 2px; }
+  #card-log-list::-webkit-scrollbar-track { background: transparent; }
+
+  .card-log-item {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    animation: logSlide 0.15s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-log-item::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+  .card-log-item.is-jack::before { background: var(--jack-gold); }
+  .card-log-item.is-sequence::before { background: var(--warning); }
+  .card-log-item.normal::before { background: var(--border); }
+
+  .card-log-rank {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    line-height: 1;
+    color: #111;
+    background: var(--card-bg);
+    border-radius: 4px;
+    width: 36px; height: 36px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-log-rank.red-suit { color: #cc0000; }
+
+  .card-log-meta { display: flex; flex-direction: column; gap: 2px; }
+  .card-log-time { color: var(--white); font-size: 10px; font-weight: 700; }
+  .card-log-elapsed { color: var(--text-muted); font-size: 9px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+  .card-log-tag {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .card-log-tag.jack { color: #111; background: var(--jack-gold); }
+  .card-log-tag.seq  { color: #111; background: var(--warning); }
+
+  /* Center: game area */
+  #game-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  /* Subtle grid bg */
+  #game-area::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  #card-table {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #card-stack-wrap {
+    position: relative;
+    width: 220px;
+    height: 308px;
+  }
+
+  #active-card {
+    width: 220px; height: 308px;
+    border-radius: 16px;
+    background: var(--card-bg);
+    border: 2px solid rgba(255,255,255,0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 2;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+    transition: transform 0.15s ease;
+  }
+
+  #active-card.flip { animation: cardFlip 0.45s ease; }
+  @keyframes cardFlip {
+    0% { transform: rotateY(0deg) scale(1); }
+    45% { transform: rotateY(90deg) scale(0.95); }
+    100% { transform: rotateY(0deg) scale(1); }
+  }
+
+  #active-card.jack {
+    background: #fffbeb;
+    box-shadow: 0 0 60px rgba(245,158,11,0.5), 0 0 120px rgba(245,158,11,0.2), 0 8px 40px rgba(0,0,0,0.4);
+    animation: jackPulse 0.5s ease infinite alternate;
+  }
+  @keyframes jackPulse {
+    0% { box-shadow: 0 0 40px rgba(245,158,11,0.4), 0 0 80px rgba(245,158,11,0.2); }
+    100% { box-shadow: 0 0 80px rgba(245,158,11,0.7), 0 0 160px rgba(245,158,11,0.4); }
+  }
+
+  #active-card.jack::after {
+    content: '♛';
+    position: absolute;
+    font-size: 28px;
+    bottom: 34px;
+    color: rgba(180,140,0,0.3);
+    pointer-events: none;
+  }
+
+  .card-rank { font-size: 88px; line-height: 1; color: #111; font-weight: 900; font-family: 'Inter', sans-serif; }
+  .card-rank.red-suit { color: #cc0000; }
+  .card-suit { font-size: 56px; line-height: 1; color: #111; }
+  .card-suit.red-suit { color: #cc0000; }
+
+  .card-corner {
+    position: absolute;
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    line-height: 1;
+    color: #111;
+  }
+  .card-corner.red-suit { color: #cc0000; }
+  .card-corner.tl { top: 12px; left: 14px; }
+  .card-corner.br { bottom: 12px; right: 14px; transform: rotate(180deg); }
+  .card-corner-suit { font-size: 16px; }
+
+  #reaction-ring {
+    position: absolute;
+    width: 236px; height: 324px;
+    border: 3px solid transparent;
+    border-radius: 20px;
+    pointer-events: none;
+    z-index: 5;
+    top: -8px; left: -8px;
+    display: none;
+  }
+  #reaction-ring.active {
+    display: block;
+    border-color: var(--jack-gold);
+    box-shadow: 0 0 20px var(--jack-gold), inset 0 0 20px rgba(245,158,11,0.1);
+    animation: ringPulse 0.3s ease infinite alternate;
+  }
+  @keyframes ringPulse {
+    0% { box-shadow: 0 0 12px var(--jack-gold); }
+    100% { box-shadow: 0 0 40px var(--jack-gold), inset 0 0 20px rgba(245,158,11,0.15); }
+  }
+
+  /* Recent cards */
+  #recent-cards {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-right: 24px;
+  }
+
+  .recent-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    margin-right: 2px;
+  }
+
+  #hist-stack {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .recent-card {
+    position: relative;
+    width: 96px; height: 135px;
+    border-radius: 10px;
+    background: var(--card-bg);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: filter 0.2s ease;
+  }
+
+  .recent-card#hist-1 { filter: brightness(0.65); }
+  .recent-card#hist-0 { filter: brightness(1); }
+
+  .recent-card.empty-slot {
+    background: rgba(255,255,255,0.02);
+    border: 1.5px dashed rgba(255,255,255,0.07);
+    box-shadow: none;
+    filter: none !important;
+  }
+
+  .recent-card-corner {
+    position: absolute;
+    top: 6px; left: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    line-height: 1;
+    color: #111;
+  }
+  .recent-card-corner.red-suit { color: #cc0000; }
+  .recent-card-corner-suit { font-size: 12px; display: block; line-height: 1.1; }
+
+  .recent-card-rank {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -55%);
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 44px;
+    line-height: 1;
+    color: #111;
+  }
+  .recent-card-rank.red-suit { color: #cc0000; }
+
+  .recent-card-suit {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, 28%);
+    font-size: 24px;
+    line-height: 1;
+    color: #111;
+  }
+  .recent-card-suit.red-suit { color: #cc0000; }
+
+  .recent-age-label {
+    position: absolute;
+    bottom: 5px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    letter-spacing: 1px;
+    color: rgba(0,0,0,0.25);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  /* Deck stats */
+  .deck-stats { display: flex; gap: 16px; justify-content: center; }
+  .deck-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    font-weight: 700;
+    background: var(--panel);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .deck-count span { color: var(--primary); }
+
+  /* Jack overlay */
+  #jack-overlay { display: none; }
+
+  /* Slap feedback */
+  #slap-feedback {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+  }
+  #slap-feedback.win { animation: slapWin 0.5s ease forwards; background: radial-gradient(ellipse at center, rgba(34,197,94,0.2) 0%, transparent 70%); }
+  #slap-feedback.lose { animation: slapLose 0.5s ease forwards; background: radial-gradient(ellipse at center, rgba(239,68,68,0.2) 0%, transparent 70%); }
+  @keyframes slapWin { 0%{opacity:0;transform:scale(0.85)} 30%{opacity:1;transform:scale(1.02)} 100%{opacity:0;transform:scale(1.08)} }
+  @keyframes slapLose { 0%{opacity:0} 30%{opacity:1} 100%{opacity:0} }
+  #slap-word {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 72px;
+    letter-spacing: 10px;
+    text-transform: uppercase;
+  }
+  #slap-word.win { color: var(--concentrated); text-shadow: 0 0 40px var(--concentrated); }
+  #slap-word.lose { color: var(--error); text-shadow: 0 0 40px var(--error); }
+
+  /* BG round number */
+  #round-timer {
+    position: absolute;
+    right: 16px; bottom: 12px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 80px;
+    line-height: 1;
+    color: var(--white);
+    letter-spacing: 2px;
+    opacity: 0.03;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Stimulus Bar */
+  #stimulus-bar {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: stretch;
+    position: relative;
+    overflow: hidden;
+    z-index: 300;
+    height: 180px;
+    min-height: 180px;
+  }
+
+  .stimulus-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    padding: 16px;
+    transition: background 0.1s ease;
+  }
+
+  /* Dimmer red SLAP */
+  #stim-slap { background: var(--slap-red); }
+  #stim-slap:hover { background: var(--slap-red-hover); }
+
+  .stim-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 80px;
+    letter-spacing: 14px;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  #stim-slap .stim-label { color: #fecaca; }
+
+  .stim-freq {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  #stim-slap .stim-freq { color: rgba(254,202,202,0.7); }
+
+  .stim-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    pointer-events: none;
+    z-index: 2;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  #stim-slap .stim-hint { color: rgba(254,202,202,0.5); }
+
+  .flicker-layer { position: absolute; inset: 0; pointer-events: none; }
+  #stim-slap .flicker-layer { background: rgba(239,68,68,0.15); }
+
+  /* Right panel */
+  #log-panel {
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #log-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  #log-list::-webkit-scrollbar { width: 3px; }
+  #log-list::-webkit-scrollbar-thumb { background: var(--surface-light); border-radius: 2px; }
+
+  .log-item {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    position: relative;
+    overflow: hidden;
+    animation: logSlide 0.2s ease;
+  }
+  @keyframes logSlide { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:translateX(0)} }
+  .log-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+  .log-item.win::before { background: var(--concentrated); }
+  .log-item.lose::before { background: var(--error); }
+  .log-item.miss::before { background: var(--text-muted); }
+  .log-round { color: var(--text-muted); font-size: 9px; margin-bottom: 2px; font-weight: 700; }
+  .log-event { color: var(--white); margin-bottom: 2px; font-weight: 700; font-size: 10px; }
+  .log-rt { font-size: 9px; }
+  .log-rt.win { color: var(--concentrated); }
+  .log-rt.lose { color: var(--error); }
+  .log-rt.miss { color: var(--text-muted); }
+
+  /* Overlays */
+  .overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(15,23,42,0.97);
+    backdrop-filter: blur(20px);
+  }
+  .overlay-card {
+    max-width: 520px; width: 90%; text-align: center;
+    padding: 44px; border: 1px solid var(--primary);
+    border-radius: 20px; background: var(--panel); position: relative; overflow: hidden;
+    box-shadow: 0 0 60px rgba(59,130,246,0.15);
+  }
+  .overlay-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  }
+
+  .overlay-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 56px;
+    letter-spacing: 8px;
+    color: var(--primary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .overlay-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    font-weight: 700;
+  }
+  .overlay-desc {
+    color: rgba(248,250,252,0.6);
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+  .overlay-desc strong { color: var(--white); }
+
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 3px;
+    padding: 14px 48px;
+    border: 2px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    border-radius: 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s ease;
+  }
+  .btn:hover {
+    background: rgba(59,130,246,0.1);
+    box-shadow: 0 0 30px rgba(59,130,246,0.2);
+  }
+  .btn:active { transform: scale(0.97); }
+
+  .key-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    margin: 0 2px;
+    background: rgba(255,255,255,0.03);
+  }
+
+  /* Calibration overlay */
+  #cal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 180px;
+    z-index: 200; background: rgba(15,23,42,0.95);
+    backdrop-filter: blur(14px);
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 0;
+  }
+  #cal-overlay.hidden { display: none !important; }
+
+  #cal-bar-outer {
+    height: 6px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    margin: 16px 0 8px;
+    overflow: hidden;
+    width: 100%;
+  }
+  #cal-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--primary);
+    border-radius: 3px;
+    transition: width 0.1s linear;
+  }
+  #cal-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+  #cal-countdown {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 80px;
+    color: var(--primary);
+    margin: 8px 0;
+    line-height: 1;
+  }
+
+  /* Penalty / Win flash */
+  #penalty-flash { position: fixed; inset: 0; background: rgba(239,68,68,0.12); pointer-events: none; z-index: 150; opacity: 0; }
+  #penalty-flash.active { animation: penaltyFlash 0.4s ease; }
+  @keyframes penaltyFlash { 0%{opacity:1} 100%{opacity:0} }
+
+  #win-flash { position: fixed; inset: 0; background: rgba(34,197,94,0.08); pointer-events: none; z-index: 150; opacity: 0; }
+  #win-flash.active { animation: winFlash 0.4s ease; }
+  @keyframes winFlash { 0%{opacity:1} 100%{opacity:0} }
+
+  #slap-hint {
+    position: absolute;
+    top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .pile-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--primary);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .hidden { display: none !important; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* Game over screen */
+#game-over-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(4,8,10,0.97);
+  backdrop-filter: blur(24px);
+}
+#game-over-overlay.hidden { display: none !important; }
+
+#game-over-card {
+  max-width: 560px; width: 90%; text-align: center;
+  padding: 48px; border: 1px solid var(--green);
+  border-radius: 16px; background: var(--panel);
+  position: relative; overflow: hidden;
+  box-shadow: 0 0 80px rgba(0,255,136,0.1);
+}
+#game-over-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+}
+
+.go-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 72px; letter-spacing: 12px;
+  color: var(--green); text-shadow: 0 0 40px var(--green);
+  margin-bottom: 4px;
+}
+.go-subtitle {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; letter-spacing: 4px;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 32px; font-weight: 700;
+}
+.go-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.go-stat {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.go-stat-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase;
+  font-weight: 700; margin-bottom: 4px;
+}
+.go-stat-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px; letter-spacing: 2px;
+  color: var(--green);
+}
+.go-stat-value.amber { color: var(--amber); }
+
+/* Timer display in header */
+#game-timer {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  color: var(--green);
+  text-shadow: 0 0 12px var(--green);
+  letter-spacing: 2px;
+  transition: color 0.3s ease;
+}
+#game-timer.warning { color: var(--amber); text-shadow: 0 0 12px var(--amber); }
+#game-timer.critical { color: var(--red); text-shadow: 0 0 12px var(--red); animation: blink 0.5s step-end infinite; }
+
+.btn-brain {
+  font-size: 72px;
+  background: transparent;
+  border: 2px solid var(--green);
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  transition: all 0.2s ease;
+  animation: brainPulse 2s ease infinite alternate;
+}
+.btn-brain:hover {
+  box-shadow: 0 0 40px rgba(0,255,136,0.4), inset 0 0 20px rgba(0,255,136,0.1);
+  transform: scale(1.05);
+}
+.btn-brain:active { transform: scale(0.96); }
+
+@keyframes brainPulse {
+  0% { box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+  100% { box-shadow: 0 0 30px rgba(0,255,136,0.5); }
+}
+
+</style>
+
+</head>
+<body>
+
+<div id="penalty-flash"></div>
+<div id="win-flash"></div>
+
+<!-- Game Over Overlay -->
+<div id="game-over-overlay" class="hidden">
+  <div id="game-over-card">
+    <div class="go-title">TIME'S UP</div>
+    <div class="go-subtitle">2 Minute Session Complete</div>
+    <div class="go-stats">
+      <div class="go-stat">
+        <div class="go-stat-label">Final Score</div>
+        <div class="go-stat-value" id="go-score">0</div>
+      </div>
+      <div class="go-stat">
+        <div class="go-stat-label">Jacks Slapped</div>
+        <div class="go-stat-value amber" id="go-jacks">0</div>
+      </div>
+      <div class="go-stat">
+        <div class="go-stat-label">Best RT</div>
+        <div class="go-stat-value" id="go-rt">—</div>
+      </div>
+      <div class="go-stat">
+        <div class="go-stat-label">Rounds</div>
+        <div class="go-stat-value" id="go-rounds">0</div>
+      </div>
+      <div class="go-stat" style="grid-column: 1 / -1;">
+        <div class="go-stat-label">Accuracy (Hits / Attempts)</div>
+        <div class="go-stat-value" id="go-accuracy">—</div>
+      </div>
+    </div>
+    <button class="btn" onclick="restartGame()">PLAY AGAIN</button>
+  </div>
+</div>
+
+<!-- Start Overlay -->
+<div class="overlay" id="start-overlay">
+  <div class="overlay-card">
+    <div class="overlay-title">NeuroJack</div>
+    <button class="btn-brain" id="start-btn">🧠</button>
+    <div style="margin-top:12px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Click to Begin</div>
+  </div>
+</div>
+
+<!-- Calibration Overlay -->
+<div id="cal-overlay" class="hidden">
+  <div style="text-align:center; padding:36px 56px; border:1px solid var(--primary); border-radius:20px; background:var(--panel); position:relative; overflow:hidden; max-width:560px; width:90%; box-shadow:0 0 60px rgba(59,130,246,0.12);">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--primary),transparent);"></div>
+    <div style="font-family:'Inter',sans-serif;font-weight:900;font-size:40px;letter-spacing:6px;color:var(--primary);margin-bottom:4px;text-transform:uppercase;">Calibrating</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--text-muted);text-transform:uppercase;margin-bottom:16px;font-weight:700;">EEG Baseline Acquisition</div>
+    <div id="cal-phase" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--white);letter-spacing:1px;margin-bottom:8px;font-weight:700;">WATCH THE FLICKERING CARDS (2 Hz)</div>
+    <div id="cal-countdown">10</div>
+    <div id="cal-bar-outer"><div id="cal-bar-fill"></div></div>
+    <div id="cal-status">Fix your gaze on the flickering cards.</div>
+  </div>
+  <div id="cal-arrow" style="margin-top:20px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--primary);letter-spacing:3px;text-align:center;animation:blink 1s step-end infinite;font-weight:700;">
+    ↑ &nbsp; WATCH THE FLICKERING CARDS ABOVE &nbsp; ↑
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <div id="logo">NeuroJack <span>v2.0 EEG</span></div>
+    <div class="stat-pill" style="margin-right:4px;">
+        <span class="stat-label">Time</span>
+        <span id="game-timer">2:00</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill"><span class="stat-label">Round</span><span class="stat-value" id="round-num">01</span></div>
+      <div class="stat-pill"><span class="stat-label">Pile</span><span class="stat-value amber" id="pile-count">0</span></div>
+      <div class="stat-pill"><span class="stat-label">Score</span><span class="stat-value green" id="score-val">0</span></div>
+      <div class="stat-pill"><span class="stat-label">Best RT</span><span class="stat-value" id="best-rt">—</span></div>
+      <div class="stat-pill" style="margin-left:8px;padding-left:8px;border-left:1px solid var(--border);">
+        <span class="stat-label">EEG</span>
+        <span class="stat-value" id="eeg-status" style="font-size:12px;letter-spacing:1px;color:var(--text-muted)">OFFLINE</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">Slap P</span>
+        <span class="stat-value" id="eeg-confidence" style="font-size:18px;">—</span>
+      </div>
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);letter-spacing:1px;text-align:right;font-weight:700;">
+      <div id="clock-display">--:--:--</div>
+      <div style="margin-top:2px;color:var(--primary);font-size:9px;letter-spacing:2px;" id="status-label">READY</div>
+    </div>
+  </div>
+
+  <!-- Left Panel -->
+  <div id="left-panel">
+    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Card Log</span>
+      <button onclick="exportCSV()" style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1px;padding:2px 6px;border:1px solid var(--primary);background:transparent;color:var(--primary);border-radius:3px;cursor:pointer;font-weight:700;">↓ CSV</button>
+    </div>
+    <div id="card-log-list">
+      <div style="color:var(--text-muted);text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;margin-top:20px;letter-spacing:1px;font-weight:700;">WAITING...</div>
+    </div>
+  </div>
+
+  <!-- Game Area -->
+  <div id="game-area">
+    <div id="slap-hint">SPACE = SLAP</div>
+
+    <div id="card-table">
+      <div style="display:flex;flex-direction:row;align-items:center;gap:0;">
+
+        <!-- Recent cards -->
+        <div id="recent-cards">
+          <div class="recent-label">Recent</div>
+          <div id="hist-stack">
+            <div class="recent-card empty-slot" id="hist-1"></div>
+            <div class="recent-card empty-slot" id="hist-0"></div>
+          </div>
+        </div>
+
+        <!-- Current card -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div class="pile-label">Play Pile</div>
+          <div id="card-stack-wrap">
+            <div id="active-card">
+              <div class="card-rank" id="card-rank">A</div>
+              <div class="card-suit" id="card-suit">♠</div>
+              <div class="card-corner tl" id="card-corner-tl">A<br><span class="card-corner-suit">♠</span></div>
+              <div class="card-corner br" id="card-corner-br">A<br><span class="card-corner-suit">♠</span></div>
+            </div>
+            <div id="reaction-ring"></div>
+          </div>
+          <div class="deck-stats">
+            <div class="deck-count">DECK <span id="draw-count">52</span></div>
+            <div class="deck-count">PILE <span id="pile-count-el">0</span></div>
+            <div class="deck-count">WON <span id="win-count">0</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="jack-overlay"><div id="jack-text">JACK!</div></div>
+    <div id="slap-feedback"><div id="slap-word">SLAP!</div></div>
+    <div id="round-timer">01</div>
+  </div>
+
+  <!-- Right Panel -->
+  <div id="log-panel">
+    <div class="panel-title">Reaction Log</div>
+    <div id="log-list">
+      <div style="color:var(--text-muted);text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;margin-top:20px;letter-spacing:1px;font-weight:700;">NO EVENTS YET</div>
+    </div>
+  </div>
+
+  <!-- Stimulus Bar -->
+  <div id="stimulus-bar">
+    <div class="stimulus-box" id="stim-slap">
+      <div class="flicker-layer" id="flicker-slap"></div>
+      <div class="stim-label">SLAP</div>
+      <div class="stim-freq">10 Hz · Trigger</div>
+      <div class="stim-hint">Shift gaze here when Jack appears</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Clock ────────────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock-display').textContent =
+    new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── SSVEP Flickering ────────────────────────────────────────────────────────
+const CARD_FREQ = 2;
+const SLAP_FREQ = 10;
+let flickerCardState = true, flickerSlapState = true;
+let lastCardFlip = 0, lastSlapFlip = 0;
+const cardPeriodHalf = 1000 / (CARD_FREQ * 2);
+const slapPeriodHalf = 1000 / (SLAP_FREQ * 2);
+
+function runFlicker(ts) {
+  if (ts - lastCardFlip >= cardPeriodHalf) {
+    flickerCardState = !flickerCardState;
+    const v = flickerCardState ? 'visible' : 'hidden';
+    document.getElementById('card-stack-wrap').style.visibility = v;
+    document.getElementById('hist-stack').style.visibility = v;
+    lastCardFlip = ts;
+  }
+  if (ts - lastSlapFlip >= slapPeriodHalf) {
+    flickerSlapState = !flickerSlapState;
+    document.getElementById('stim-slap').style.visibility = flickerSlapState ? 'visible' : 'hidden';
+    lastSlapFlip = ts;
+  }
+  requestAnimationFrame(runFlicker);
+}
+requestAnimationFrame(runFlicker);
+
+// ─── Card Engine ──────────────────────────────────────────────────────────────
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const SUITS = ['♠','♥','♦','♣'];
+const RED_SUITS = ['♥','♦'];
+
+function buildDeck() {
+  const deck = [];
+  for (const suit of SUITS) for (const rank of RANKS) deck.push({rank, suit});
+  for (const suit of SUITS) deck.push({rank:'J', suit});
+  return deck;
+}
+function shuffle(arr) {
+  for (let i = arr.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+// ─── Game State ───────────────────────────────────────────────────────────────
+let deck=[], pile=[], playerCards=0, winCards=0, score=0, round=0;
+let currentCard=null, isJack=false, jackWindow=false, jackWindowTimer=null;
+let jackAppearTime=null, bestRT=Infinity, gameRunning=false;
+let testNumber=0, logFirstEntry=true;
+let gameStartTime = 0;
+
+// ─── DOM refs ─────────────────────────────────────────────────────────────────
+const activeCard = document.getElementById('active-card');
+const cardRank = document.getElementById('card-rank');
+const cardSuit = document.getElementById('card-suit');
+const cardCornerTL = document.getElementById('card-corner-tl');
+const cardCornerBR = document.getElementById('card-corner-br');
+const jackOverlay = document.getElementById('jack-overlay');
+const slapFeedback = document.getElementById('slap-feedback');
+const slapWord = document.getElementById('slap-word');
+const reactionRing = document.getElementById('reaction-ring');
+const statusLabel = document.getElementById('status-label');
+const logList = document.getElementById('log-list');
+const cardLogList = document.getElementById('card-log-list');
+
+let cardLogFirstEntry = true;
+let cardLogData = [];
+
+function addCardLog(card, tags) {
+  if (cardLogFirstEntry) { cardLogList.innerHTML = ''; cardLogFirstEntry = false; }
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+  const elapsedMs = performance.now() - gameStartTime;
+  const elapsedSec = Math.floor(elapsedMs / 1000);
+  const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+  const ss = String(elapsedSec % 60).padStart(2, '0');
+  const ms = String(Math.floor((elapsedMs % 1000) / 10)).padStart(2, '0');
+  const elapsedStr = `${mm}:${ss}.${ms}`;
+
+  const isRed = ['♥','♦'].includes(card.suit);
+  const rankCls = isRed ? 'red-suit' : '';
+  const suitCount = getSuitCount(card);
+  const tagLabel = tags.includes('jack') ? 'JACK' : tags.includes('seq') ? '3-SUIT' : '';
+
+  cardLogData.push({ round, rank: card.rank, suit: card.suit, time: timeStr, elapsed: elapsedStr, elapsed_ms: Math.round(elapsedMs), suit_count: suitCount, tag: tagLabel });
+
+  let tagHTML = '';
+  if (tags.includes('jack')) tagHTML = `<span class="card-log-tag jack">♛ JACK</span>`;
+  else if (tags.includes('seq')) tagHTML = `<span class="card-log-tag seq">▲ 3×${card.suit}</span>`;
+
+  const item = document.createElement('div');
+  item.className = 'card-log-item ' + (tags.includes('jack') ? 'is-jack' : tags.includes('seq') ? 'is-sequence' : 'normal');
+  item.innerHTML = `
+    <div class="card-log-rank ${rankCls}">${card.rank}<span style="font-size:9px;display:block;line-height:1">${card.suit}</span></div>
+    <div class="card-log-meta">
+      <div class="card-log-time">${timeStr}</div>
+      <div class="card-log-elapsed">+${elapsedStr}&nbsp;<span style="color:${isRed?'#f87171':'var(--text-muted)'};">${card.suit}×${suitCount}</span>${tagHTML ? '&nbsp;' + tagHTML : ''}</div>
+    </div>
+  `;
+  cardLogList.appendChild(item);
+  cardLogList.scrollTop = cardLogList.scrollHeight;
+}
+
+// ─── Recent card history ─────────────────────────────────────────────────────
+let recentHistory = [];
+
+function renderRecentCards() {
+  const RED_SUITS_SET = new Set(['♥','♦']);
+  const ageLabels = ['LATEST', 'PREV'];
+  for (let i = 0; i < 2; i++) {
+    const el = document.getElementById('hist-' + i);
+    const card = recentHistory[i];
+    if (!card) { el.className = 'recent-card empty-slot'; el.innerHTML = ''; continue; }
+    const isRed = RED_SUITS_SET.has(card.suit);
+    const cls = isRed ? 'red-suit' : '';
+    el.className = 'recent-card filled';
+    el.innerHTML = `
+      <div class="recent-card-corner ${cls}">${card.rank}<span class="recent-card-corner-suit ${cls}">${card.suit}</span></div>
+      <div class="recent-card-rank ${cls}">${card.rank}</div>
+      <div class="recent-card-suit ${cls}">${card.suit}</div>
+      <div class="recent-age-label">${ageLabels[i]}</div>
+    `;
+  }
+}
+
+function pushHistory(card) {
+  recentHistory.unshift(card);
+  if (recentHistory.length > 2) recentHistory.length = 2;
+  renderRecentCards();
+}
+
+function clearHistory() { recentHistory = []; renderRecentCards(); }
+
+// ─── Suit Streak ─────────────────────────────────────────────────────────────
+const SUIT_SYMBOL_TO_KEY = { '♠':'spade', '♥':'heart', '♦':'diamond', '♣':'club' };
+let suitStreak = [];
+let isSequence = false;
+
+function checkSuitCount(card) {
+  const key = SUIT_SYMBOL_TO_KEY[card.suit];
+  suitStreak.unshift(key);
+  if (suitStreak.length > 3) suitStreak.length = 3;
+  if (suitStreak.length === 3 && suitStreak[0] === suitStreak[1] && suitStreak[1] === suitStreak[2] && suitStreak[0] !== undefined) return true;
+  return false;
+}
+
+function resetSuitCounts() { suitStreak = []; }
+
+function getSuitCount(card) {
+  const key = SUIT_SYMBOL_TO_KEY[card.suit];
+  let count = 0;
+  for (const s of suitStreak) { if (s === key) count++; else break; }
+  return count;
+}
+
+function updateCard(card) {
+  const isRed = RED_SUITS.includes(card.suit);
+  const cls = isRed ? 'red-suit' : '';
+  cardRank.textContent = card.rank;
+  cardRank.className = 'card-rank ' + cls;
+  cardSuit.textContent = card.suit;
+  cardSuit.className = 'card-suit ' + cls;
+  cardCornerTL.innerHTML = `${card.rank}<br><span class="card-corner-suit ${cls}">${card.suit}</span>`;
+  cardCornerBR.innerHTML = `${card.rank}<br><span class="card-corner-suit ${cls}">${card.suit}</span>`;
+  cardCornerTL.className = 'card-corner tl ' + cls;
+  cardCornerBR.className = 'card-corner br ' + cls;
+}
+
+function flipCard() {
+  if (!gameRunning) return;
+  if (deck.length === 0) {
+    if (pile.length > 0) { deck = shuffle(buildDeck()); pile = []; resetSuitCounts(); document.getElementById('pile-count').textContent = 0; }
+    else { endGame(); return; }
+  }
+
+  if (currentCard) pushHistory(currentCard);
+  currentCard = deck.pop();
+  pile.push(currentCard);
+  isJack = currentCard.rank === 'J';
+  isSequence = checkSuitCount(currentCard);
+  round++;
+
+  activeCard.classList.add('flip');
+  setTimeout(() => activeCard.classList.remove('flip'), 450);
+  if (isJack) activeCard.classList.add('jack');
+  else activeCard.classList.remove('jack');
+
+  if (isSequence && !isJack) {
+    activeCard.style.boxShadow = '0 0 40px rgba(245,158,11,0.4), 0 8px 40px rgba(0,0,0,0.5)';
+    activeCard.style.borderColor = 'rgba(245,158,11,0.5)';
+  } else if (!isJack) {
+    activeCard.style.boxShadow = '';
+    activeCard.style.borderColor = '';
+  }
+
+  updateCard(currentCard);
+  document.getElementById('draw-count').textContent = deck.length;
+  document.getElementById('pile-count-el').textContent = pile.length;
+  document.getElementById('round-num').textContent = String(round).padStart(2,'0');
+  document.getElementById('round-timer').textContent = String(round).padStart(2,'0');
+
+  const tags = [];
+  if (isJack) tags.push('jack');
+  if (isSequence) tags.push('seq');
+  addCardLog(currentCard, tags);
+
+  if (isJack || isSequence) openJackWindow();
+  else closeJackWindow();
+
+  scheduleNextFlip(FLIP_INTERVAL);
+}
+
+function openJackWindow() {
+  jackWindow = true;
+  jackAppearTime = performance.now();
+  jackOverlay.classList.add('visible');
+  reactionRing.classList.add('active');
+  statusLabel.textContent = isSequence && !isJack ? '3-SUIT — SLAP!' : 'JACK — SLAP!';
+  jackWindowTimer = setTimeout(() => {
+    if (jackWindow) { closeJackWindow(); logEvent('miss', round, null); statusLabel.textContent = 'MISSED'; setTimeout(() => { if(gameRunning) statusLabel.textContent='PLAYING'; }, 1200); }
+  }, FLIP_INTERVAL - 200);
+}
+
+function closeJackWindow() {
+  jackWindow = false;
+  jackOverlay.classList.remove('visible');
+  reactionRing.classList.remove('active');
+  activeCard.classList.remove('jack');
+  clearTimeout(jackWindowTimer);
+}
+
+function triggerSlap() {
+  if (!gameRunning) return;
+  totalSlapAttempts++;
+  const rt = jackAppearTime ? performance.now() - jackAppearTime : null;
+
+  if ((isJack || isSequence) && jackWindow) {
+    const rtSec = rt / 1000;
+    if (rt < bestRT) { bestRT = rt; document.getElementById('best-rt').textContent = rtSec.toFixed(2) + 's'; }
+    // Reaction time based scoring: faster = more points
+    const pts = rt < 300 ? 10 : rt < 500 ? 8 : rt < 800 ? 6 : rt < 1200 ? 4 : rt < 2000 ? 2 : 1;
+    score += pts;
+    totalSlapHits++;
+    broadcastScoreToApp(score);
+    winCards += pile.length;
+    pile = [];
+    resetSuitCounts();
+    closeJackWindow();
+    showSlapFeedback('win');
+    flashWin();
+    logEvent('win', round, rtSec);
+    document.getElementById('score-val').textContent = score;
+    document.getElementById('win-count').textContent = winCards;
+    document.getElementById('pile-count-el').textContent = 0;
+    statusLabel.textContent = 'SLAP! +' + pts;
+    setTimeout(() => { if(gameRunning) statusLabel.textContent='PLAYING'; }, 800);
+  } else if (!isJack && !isSequence && gameRunning) {
+    score = Math.max(0, score - 3);
+    playerCards = Math.max(0, playerCards - 3);
+    showSlapFeedback('lose');
+    flashPenalty();
+    logEvent('false', round, null);
+    document.getElementById('score-val').textContent = score;
+    document.getElementById('player-cards').textContent = playerCards;
+    statusLabel.textContent = 'FALSE SLAP −3';
+    setTimeout(() => { if(gameRunning) statusLabel.textContent='PLAYING'; }, 800);
+  }
+}
+
+function showSlapFeedback(type) {
+  slapFeedback.className = '';
+  slapWord.className = '';
+  void slapFeedback.offsetWidth;
+  slapFeedback.classList.add(type);
+  slapWord.textContent = type === 'win' ? 'SLAP!' : 'PENALTY!';
+  slapWord.classList.add(type);
+}
+
+function flashPenalty() {
+  const el = document.getElementById('penalty-flash');
+  el.classList.remove('active'); void el.offsetWidth; el.classList.add('active');
+}
+function flashWin() {
+  const el = document.getElementById('win-flash');
+  el.classList.remove('active'); void el.offsetWidth; el.classList.add('active');
+}
+
+function logEvent(type, rnd, rt) {
+  testNumber++;
+  if (logFirstEntry) { logList.innerHTML = ''; logFirstEntry = false; }
+  const item = document.createElement('div');
+  item.className = 'log-item ' + (type==='win'?'win':type==='miss'?'miss':'lose');
+  const rtStr = rt !== null ? rt.toFixed(3) + 's' : '—';
+  const rtClass = rt !== null ? (type==='win'?'win':'lose') : 'miss';
+  const eventText = {win:'✓ Slap Detected', miss:'✗ Missed Jack', false:'✗ False Positive'}[type];
+  item.innerHTML = `<div class="log-round">#${testNumber} · Round ${rnd}</div><div class="log-event">${eventText}</div><div class="log-rt ${rtClass}">RT: ${rtStr}</div>`;
+  logList.insertBefore(item, logList.firstChild);
+}
+
+// ─── Timer ────────────────────────────────────────────────────────────────────
+const GAME_DURATION_MS = 120000; // 2 minutes
+let gameTimerInterval = null;
+let gameEndTime = null;
+let totalSlapAttempts = 0;
+let totalSlapHits = 0;
+
+function startGameTimer() {
+  gameEndTime = Date.now() + GAME_DURATION_MS;
+  gameTimerInterval = setInterval(() => {
+    const remaining = gameEndTime - Date.now();
+    if (remaining <= 0) {
+      clearInterval(gameTimerInterval);
+      endGame();
+      return;
+    }
+    const secs = Math.ceil(remaining / 1000);
+    const mm = Math.floor(secs / 60);
+    const ss = secs % 60;
+    const timerEl = document.getElementById('game-timer');
+    timerEl.textContent = `${mm}:${String(ss).padStart(2,'0')}`;
+    if (remaining <= 10000) timerEl.className = 'critical';
+    else if (remaining <= 30000) timerEl.className = 'warning';
+    else timerEl.className = '';
+  }, 100);
+}
+
+function endGame() {
+  gameRunning = false;
+  clearTimeout(flipTimeout);
+  clearInterval(gameTimerInterval);
+  closeJackWindow();
+
+  // Populate stats
+  document.getElementById('go-score').textContent = score;
+  document.getElementById('go-jacks').textContent = totalSlapHits;
+  document.getElementById('go-rounds').textContent = round;
+  document.getElementById('go-rt').textContent = bestRT === Infinity ? '—' : (bestRT/1000).toFixed(2) + 's';
+  const acc = totalSlapAttempts > 0
+    ? Math.round((totalSlapHits / totalSlapAttempts) * 100) + '%'
+    : '—';
+  document.getElementById('go-accuracy').textContent =
+    totalSlapHits + ' / ' + totalSlapAttempts + '  (' + acc + ')';
+
+  document.getElementById('game-timer').textContent = '0:00';
+  document.getElementById('game-over-overlay').classList.remove('hidden');
+}
+
+function restartGame() {
+  document.getElementById('game-over-overlay').classList.add('hidden');
+  totalSlapAttempts = 0;
+  totalSlapHits = 0;
+  startGame();
+}
+
+// ─── Calibration ─────────────────────────────────────────────────────────────
+function runCalibration() {
+  const calOverlay = document.getElementById('cal-overlay');
+  calOverlay.classList.remove('hidden');
+  const calCountdown = document.getElementById('cal-countdown');
+  const calBarFill = document.getElementById('cal-bar-fill');
+  const cardTable = document.getElementById('card-table');
+
+  cardTable.style.outline = '2px solid var(--primary)';
+  cardTable.style.boxShadow = '0 0 30px rgba(59,130,246,0.3)';
+  cardTable.style.borderRadius = '12px';
+
+  const totalTime = 10000;
+  const startT = performance.now();
+
+  function tick(ts) {
+    const elapsed = ts - startT;
+    const frac = Math.min(1, elapsed / totalTime);
+    calBarFill.style.width = (frac * 100) + '%';
+    calCountdown.textContent = Math.max(0, Math.ceil((totalTime - elapsed) / 1000));
+    if (elapsed >= totalTime) {
+      calCountdown.textContent = '✓';
+      calBarFill.style.width = '100%';
+      cardTable.style.outline = '';
+      cardTable.style.boxShadow = '';
+      setTimeout(() => { calOverlay.classList.add('hidden'); startGame(); }, 1000);
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ─── Start Game ───────────────────────────────────────────────────────────────
+function startGame() {
+  deck = shuffle(buildDeck()); pile = []; playerCards = 26; winCards = 0; score = 0; round = 0;
+  isJack = false; isSequence = false;
+  resetSuitCounts();
+  jackWindow = false; bestRT = Infinity; gameRunning = true; logFirstEntry = true;
+  gameStartTime = performance.now();
+  cardLogData = [];
+  cardLogFirstEntry = true;
+  cardLogList.innerHTML = '<div style="color:var(--text-muted);text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:9px;margin-top:20px;letter-spacing:1px;font-weight:700;">WAITING...</div>';
+  clearHistory();
+  logList.innerHTML = '<div style="color:var(--text-muted);text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:9px;margin-top:20px;letter-spacing:1px;font-weight:700;">NO EVENTS YET</div>';
+  document.getElementById('player-cards') && (document.getElementById('player-cards').textContent = playerCards);
+  document.getElementById('score-val').textContent = 0;
+  document.getElementById('win-count').textContent = '0';
+  document.getElementById('best-rt').textContent = '—';
+  statusLabel.textContent = 'PLAYING';
+  totalSlapAttempts = 0;
+  totalSlapHits = 0;
+  document.getElementById('game-timer').textContent = '2:00';
+  document.getElementById('game-timer').className = '';
+  startGameTimer();
+  scheduleNextFlip();
+}
+
+const FLIP_INTERVAL = 2500;
+let flipTimeout = null;
+
+function scheduleNextFlip(delay) {
+  clearTimeout(flipTimeout);
+  flipTimeout = setTimeout(flipCard, delay ?? FLIP_INTERVAL);
+}
+
+// ─── CSV Export ───────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!cardLogData.length) { alert('No card data yet — start a game first.'); return; }
+  const headers = ['round','rank','suit','time','elapsed','elapsed_ms','suit_count_in_pile','tag'];
+  const rows = cardLogData.map(r => [r.round,r.rank,r.suit,r.time,r.elapsed,r.elapsed_ms,r.suit_count,r.tag].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `neurojack_log_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); if (gameRunning) triggerSlap(); }
+  if (e.code === 'Escape') { if (gameRunning) { gameRunning=false; clearTimeout(flipTimeout); statusLabel.textContent='PAUSED'; } }
+});
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  document.getElementById('start-overlay').classList.add('hidden');
+  runCalibration();
+});
+document.getElementById('stim-slap').addEventListener('click', () => { if (gameRunning) triggerSlap(); });
+
+// ─── Score broadcast ─────────────────────────────────────────────────────────
+function broadcastScoreToApp(score) {
+  const msg = JSON.stringify({ type: 'score_update', score });
+  if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+  if (window.parent !== window) window.parent.postMessage(msg, '*');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── EEG WebSocket Client ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+const EEG_WS_URL    = 'ws://localhost:8765';
+const EEG_ENABLED   = true;
+const EEG_AUTO_SLAP = true;
+
+let eegSocket       = null;
+let eegConnected    = false;
+let eegReconnectMs  = 2000;
+let eegLastTrigger  = 0;
+let eegCooldownMs   = 800;
+
+const eegStatusEl     = document.getElementById('eeg-status');
+const eegConfidenceEl = document.getElementById('eeg-confidence');
+
+function updateEEGDisplay(pSlap, trigger) {
+  if (!eegConfidenceEl) return;
+  const pct = Math.round(pSlap * 100);
+  eegConfidenceEl.textContent = pct + '%';
+  if (trigger) {
+    eegConfidenceEl.style.color = 'var(--concentrated)';
+  } else if (pSlap > 0.4) {
+    eegConfidenceEl.style.color = 'var(--warning)';
+  } else {
+    eegConfidenceEl.style.color = 'var(--text-muted)';
+  }
+  const bar = document.getElementById('eeg-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = trigger ? 'var(--concentrated)' : pSlap > 0.4 ? 'var(--warning)' : 'var(--text-muted)';
+  }
+}
+
+function setEEGStatus(status, color) {
+  if (!eegStatusEl) return;
+  eegStatusEl.textContent = status;
+  eegStatusEl.style.color = color || 'var(--text-muted)';
+}
+
+function onEEGPrediction(data) {
+  const { prediction, p_slap, confidence, trigger } = data;
+  updateEEGDisplay(p_slap, trigger);
+  if (EEG_AUTO_SLAP && trigger && gameRunning && (isJack || isSequence) && jackWindow) {
+    const now = performance.now();
+    if (now - eegLastTrigger > eegCooldownMs) {
+      eegLastTrigger = now;
+      triggerSlap();
+    }
+  }
+}
+
+function connectEEG() {
+  if (!EEG_ENABLED) return;
+  setEEGStatus('CONNECTING', 'var(--warning)');
+  try { eegSocket = new WebSocket(EEG_WS_URL); } catch (e) { scheduleReconnect(); return; }
+
+  eegSocket.onopen = () => {
+    eegConnected = true; eegReconnectMs = 2000;
+    setEEGStatus('LIVE', 'var(--concentrated)');
+    eegSocket._pingInterval = setInterval(() => {
+      if (eegSocket.readyState === WebSocket.OPEN) eegSocket.send(JSON.stringify({ type: 'ping' }));
+    }, 5000);
+  };
+
+  eegSocket.onmessage = (evt) => {
+    try {
+      const data = JSON.parse(evt.data);
+      if (data.type === 'eeg_prediction') onEEGPrediction(data);
+      else if (data.type === 'connected') console.log('[EEG] Server:', data.message);
+    } catch (e) {}
+  };
+
+  eegSocket.onerror = () => {};
+
+  eegSocket.onclose = () => {
+    eegConnected = false;
+    if (eegSocket._pingInterval) clearInterval(eegSocket._pingInterval);
+    setEEGStatus('OFFLINE', 'var(--text-muted)');
+    updateEEGDisplay(0, false);
+    scheduleReconnect();
+  };
+}
+
+function scheduleReconnect() {
+  setTimeout(() => { if (!eegConnected) connectEEG(); }, eegReconnectMs);
+  eegReconnectMs = Math.min(eegReconnectMs * 1.5, 15000);
+}
+
+function injectEEGBar() {
+  const app = document.getElementById('app');
+  if (!app || document.getElementById('eeg-bar-wrap')) return;
+  app.style.gridTemplateRows = '52px 4px 1fr 180px';
+  const barWrap = document.createElement('div');
+  barWrap.id = 'eeg-bar-wrap';
+  barWrap.style.cssText = 'grid-column:1/-1;height:4px;background:rgba(0,0,0,0.4);position:relative;z-index:50;';
+  const bar = document.createElement('div');
+  bar.id = 'eeg-bar';
+  bar.style.cssText = 'height:100%;width:0%;background:var(--primary);transition:width 0.25s ease,background 0.25s ease;';
+  barWrap.appendChild(bar);
+  const header = document.getElementById('header');
+  if (header && header.nextSibling) app.insertBefore(barWrap, header.nextSibling);
+  else app.appendChild(barWrap);
+}
+
+injectEEGBar();
+connectEEG();
+</script>
+</body>
+</html>

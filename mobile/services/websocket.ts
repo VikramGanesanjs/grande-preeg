@@ -9,7 +9,10 @@ const debuggerHost = Constants.expoConfig?.hostUri;
 
 // Strip the Expo port and attach the Node.js server's port (3001)
 const computerIp = debuggerHost ? debuggerHost.split(':')[0] : 'localhost';
-const DEFAULT_SERVER_URL = `http://${computerIp}:3001`;
+const DEFAULT_SERVER_URL = typeof window !== 'undefined' && window.location?.hostname
+  ? `http://${window.location.hostname}:3001`  // web: use current hostname
+  : `http://${computerIp}:3001`;               // native: use expo host
+
 
 type MessageHandler = (message: ServerMessage) => void;
 type ConnectionHandler = () => void;

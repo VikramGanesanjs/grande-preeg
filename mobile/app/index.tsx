@@ -119,6 +119,17 @@ export default function GameSelectorScreen() {
           delay={400}
           available={true}
         />
+
+        <GameCard
+          title="NeuroJack"
+          subtitle="SSVEP Slapjack BCI"
+          description="Watch the cards flicker. When a Jack appears, shift your gaze to the SLAP button to trigger it with your brain."
+          icon="hand-right-outline"
+          iconColor="#ff1a1a"
+          onPress={() => router.push('/slapjack/game')}
+          delay={500}
+          available={true}
+        />
         
         <GameCard
           title="Focus Flow"

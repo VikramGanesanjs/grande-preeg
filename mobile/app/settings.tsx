@@ -8,6 +8,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useGameStore } from '../stores/gameStore';
 import { opponentSocketService } from '../services/opponentSocket';
+import { useSlapjackMultiplayerStore } from '../stores/slapjackMultiplayerStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -49,10 +50,15 @@ export default function SettingsScreen() {
   const handleOpponentServerUrlChange = (url: string) => {
     setOpponentServerUrl(url);
   };
+
+  const setSlapjackMultiplayer = useSlapjackMultiplayerStore(
+    (state) => state.setMultiplayer
+  );
   
   const handleMultiplayerToggle = (enabled: boolean) => {
     setMultiplayerEnabled(enabled);
     setMultiplayer(enabled);
+    setSlapjackMultiplayer(enabled);
     
     if (enabled && opponentServerUrl) {
       opponentSocketService.connect(opponentServerUrl);
