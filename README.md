@@ -34,6 +34,7 @@ grande-preeg/
 │       ├── services/          # Signal generator
 │       ├── handlers/          # WebSocket handlers
 │       └── types/             # Shared types
+├── multiplayer-server/         # Vercel-deployable shared multiplayer API
 └── README.md
 ```
 
@@ -54,6 +55,19 @@ npm run dev
 ```
 
 The WebSocket server will start on `http://localhost:3001`.
+
+### Multiplayer Relay Setup (Deployed Multiplayer Server)
+
+Deploy `multiplayer-server/` as a standalone Node/Express + Socket.IO service and configure each local backend with:
+
+- `MULTIPLAYER_SERVER_URL`: deployed multiplayer server URL
+- `MULTIPLAYER_RACE_ID`: shared race/lobby identifier for both players
+- `MULTIPLAYER_PLAYER_ID`: unique player identifier on each local backend
+
+You can also update relay settings at runtime via:
+
+- `GET /api/multiplayer/config`
+- `POST /api/multiplayer/config`
 
 ### Mobile App Setup
 

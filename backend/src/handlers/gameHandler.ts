@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { signalGenerator, SignalGenerator, SignalMode } from '../services/signalGenerator';
+import { multiplayerRelayService } from '../services/multiplayerRelayService';
 import {
   GameSession,
   ConcentrationUpdateMessage,
@@ -198,6 +199,10 @@ function handleUpdatePosition(io: Server, socket: Socket, payload: any): void {
   
   if (typeof position === 'number' && position >= 0 && position <= 100) {
     broadcastPlayerPosition(io, position, status || 'playing');
+    void multiplayerRelayService.pushLocalPosition(
+      position,
+      (status || 'playing') as 'idle' | 'playing' | 'finished'
+    );
   }
 }
 
@@ -208,6 +213,7 @@ function handleSetMultiplayerReady(io: Server, socket: Socket, payload: any): vo
   const { ready } = payload;
   isMultiplayerReady = !!ready;
   console.log(`[Multiplayer] Player ready state: ${isMultiplayerReady}`);
+  void multiplayerRelayService.pushLocalReady(isMultiplayerReady);
   
   // Broadcast to all subscribed opponents
   io.to('opponent_subscribers').emit('opponent_ready', {
@@ -312,6 +318,7 @@ function handleEndGame(io: Server, socket: Socket, payload: any): void {
 
   // Reset multiplayer ready state
   isMultiplayerReady = false;
+  void multiplayerRelayService.pushLocalReady(false);
   io.to('opponent_subscribers').emit('opponent_ready', {
     ready: false,
     timestamp: Date.now(),

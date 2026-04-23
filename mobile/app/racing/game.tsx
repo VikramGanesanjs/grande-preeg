@@ -208,7 +208,8 @@ export default function GameScreen() {
           carPosition={carPosition}
           isConcentrated={isConcentrated}
           opponentPosition={opponentPosition}
-          showOpponent={isMultiplayer && opponentStatus !== 'disconnected'}
+          opponentConnected={opponentStatus !== 'disconnected'}
+          showOpponent={isMultiplayer}
         />
       </View>
       

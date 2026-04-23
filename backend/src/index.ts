@@ -11,6 +11,7 @@ import cors from 'cors';
 import { setupGameHandlers } from './handlers/gameHandler';
 import { signalGenerator, SignalGenerator, SignalMode } from './services/signalGenerator';
 import { lslService } from './services/lslService';
+import { multiplayerRelayService } from './services/multiplayerRelayService';
 
 const PORT = process.env.PORT || 3001;
 
@@ -158,6 +159,22 @@ app.post('/api/lsl/config', (req, res) => {
   });
 });
 
+// Multiplayer relay status/config
+app.get('/api/multiplayer/config', (req, res) => {
+  res.json(multiplayerRelayService.getConfig());
+});
+
+app.post('/api/multiplayer/config', (req, res) => {
+  const { enabled, serverUrl, raceId, playerId } = req.body ?? {};
+  const config = multiplayerRelayService.updateConfig({
+    enabled: enabled !== undefined ? !!enabled : undefined,
+    serverUrl: typeof serverUrl === 'string' ? serverUrl : undefined,
+    raceId: typeof raceId === 'string' ? raceId : undefined,
+    playerId: typeof playerId === 'string' ? playerId : undefined,
+  });
+  res.json({ success: true, config });
+});
+
 // Create HTTP server
 const httpServer = createServer(app);
 
@@ -173,6 +190,7 @@ const io = new Server(httpServer, {
 
 // Connect LSL service to Socket.IO for emitting EEG data
 lslService.setSocketServer(io);
+multiplayerRelayService.initialize(io);
 
 // Handle socket connections
 io.on('connection', (socket) => {

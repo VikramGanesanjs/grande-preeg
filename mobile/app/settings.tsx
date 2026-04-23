@@ -7,7 +7,6 @@ import { colors, typography, spacing, borderRadius } from '../constants/theme';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useGameStore } from '../stores/gameStore';
-import { opponentSocketService } from '../services/opponentSocket';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -16,14 +15,18 @@ export default function SettingsScreen() {
   const {
     concentrationThreshold,
     serverUrl,
-    opponentServerUrl,
+    multiplayerServerUrl,
+    multiplayerRaceId,
+    multiplayerPlayerId,
     multiplayerEnabled,
     soundEnabled,
     hapticsEnabled,
     devModeEnabled,
     setConcentrationThreshold,
     setServerUrl,
-    setOpponentServerUrl,
+    setMultiplayerServerUrl,
+    setMultiplayerRaceId,
+    setMultiplayerPlayerId,
     setMultiplayerEnabled,
     setSoundEnabled,
     setHapticsEnabled,
@@ -46,26 +49,33 @@ export default function SettingsScreen() {
     setServerUrl(url);
   };
   
-  const handleOpponentServerUrlChange = (url: string) => {
-    setOpponentServerUrl(url);
-  };
-  
   const handleMultiplayerToggle = (enabled: boolean) => {
     setMultiplayerEnabled(enabled);
     setMultiplayer(enabled);
-    
-    if (enabled && opponentServerUrl) {
-      opponentSocketService.connect(opponentServerUrl);
-    } else {
-      opponentSocketService.disconnect();
-    }
+    void syncMultiplayerConfig(enabled);
   };
   
-  const handleConnectOpponent = () => {
-    if (opponentServerUrl) {
-      opponentSocketService.disconnect();
-      setTimeout(() => opponentSocketService.connect(opponentServerUrl), 500);
+  const syncMultiplayerConfig = async (enabled = multiplayerEnabled) => {
+    if (!serverUrl) return;
+
+    try {
+      await fetch(`${serverUrl}/api/multiplayer/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled,
+          serverUrl: multiplayerServerUrl,
+          raceId: multiplayerRaceId,
+          playerId: multiplayerPlayerId,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to sync multiplayer config:', error);
     }
+  };
+
+  const handleApplyMultiplayerConfig = () => {
+    void syncMultiplayerConfig(multiplayerEnabled);
   };
   
   const handleReconnect = () => {
@@ -73,14 +83,8 @@ export default function SettingsScreen() {
     setTimeout(() => connect(serverUrl), 500);
   };
   
-  // Connect to opponent server when multiplayer is enabled and URL changes
   useEffect(() => {
-    if (multiplayerEnabled && opponentServerUrl) {
-      opponentSocketService.connect(opponentServerUrl);
-    }
-    return () => {
-      // Don't disconnect on unmount to keep connection during navigation
-    };
+    void syncMultiplayerConfig(multiplayerEnabled);
   }, []);
   
   return (
@@ -161,27 +165,45 @@ export default function SettingsScreen() {
             />
           </View>
           
-          {/* Opponent Server URL */}
+          {/* Multiplayer relay server URL */}
           {multiplayerEnabled && (
             <View style={styles.settingRowVertical}>
               <View style={styles.settingInfo}>
                 <Ionicons name="link" size={20} color={colors.textMuted} />
                 <View style={styles.settingTextContainer}>
-                  <Text style={styles.settingLabel}>Opponent Server URL</Text>
+                  <Text style={styles.settingLabel}>Multiplayer Server URL</Text>
                   <Text style={styles.settingDescription}>
-                    Connect to opponent's server
+                    Shared deployed multiplayer service
                   </Text>
                 </View>
               </View>
               <TextInput
                 style={styles.textInput}
-                value={opponentServerUrl}
-                onChangeText={handleOpponentServerUrlChange}
-                placeholder="http://opponent-ip:3001"
+                value={multiplayerServerUrl}
+                onChangeText={setMultiplayerServerUrl}
+                placeholder="https://your-multiplayer-server.com"
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
+              />
+              <TextInput
+                style={styles.textInput}
+                value={multiplayerRaceId}
+                onChangeText={setMultiplayerRaceId}
+                placeholder="Race ID (same for both players)"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TextInput
+                style={styles.textInput}
+                value={multiplayerPlayerId}
+                onChangeText={setMultiplayerPlayerId}
+                placeholder="Player ID (unique per player)"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               <View style={styles.multiplayerStatus}>
                 <View style={[
@@ -197,10 +219,10 @@ export default function SettingsScreen() {
                   styles.reconnectButton,
                   pressed && styles.reconnectButtonPressed,
                 ]}
-                onPress={handleConnectOpponent}
+                onPress={handleApplyMultiplayerConfig}
               >
                 <Ionicons name="refresh" size={16} color={colors.primary} />
-                <Text style={styles.reconnectText}>Connect to Opponent</Text>
+                <Text style={styles.reconnectText}>Apply Multiplayer Config</Text>
               </Pressable>
             </View>
           )}

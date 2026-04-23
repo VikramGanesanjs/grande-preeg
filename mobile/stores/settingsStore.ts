@@ -9,8 +9,10 @@ interface SettingsState {
   // Server URL for development
   serverUrl: string;
   
-  // Opponent server URL for multiplayer
-  opponentServerUrl: string;
+  // Shared multiplayer relay server URL (Vercel deployment)
+  multiplayerServerUrl: string;
+  multiplayerRaceId: string;
+  multiplayerPlayerId: string;
   
   // Multiplayer mode enabled
   multiplayerEnabled: boolean;
@@ -31,7 +33,9 @@ interface SettingsState {
 interface SettingsActions {
   setConcentrationThreshold: (threshold: 3 | 5) => void;
   setServerUrl: (url: string) => void;
-  setOpponentServerUrl: (url: string) => void;
+  setMultiplayerServerUrl: (url: string) => void;
+  setMultiplayerRaceId: (raceId: string) => void;
+  setMultiplayerPlayerId: (playerId: string) => void;
   setMultiplayerEnabled: (enabled: boolean) => void;
   setSoundEnabled: (enabled: boolean) => void;
   setHapticsEnabled: (enabled: boolean) => void;
@@ -45,7 +49,9 @@ type SettingsStore = SettingsState & SettingsActions;
 const defaultSettings: SettingsState = {
   concentrationThreshold: 3,
   serverUrl: 'http://localhost:3001',
-  opponentServerUrl: '',
+  multiplayerServerUrl: '',
+  multiplayerRaceId: 'default-race',
+  multiplayerPlayerId: 'player-local',
   multiplayerEnabled: false,
   soundEnabled: true,
   hapticsEnabled: true,
@@ -66,8 +72,16 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
     set({ serverUrl: url });
   },
 
-  setOpponentServerUrl: (url: string) => {
-    set({ opponentServerUrl: url });
+  setMultiplayerServerUrl: (url: string) => {
+    set({ multiplayerServerUrl: url });
+  },
+
+  setMultiplayerRaceId: (raceId: string) => {
+    set({ multiplayerRaceId: raceId });
+  },
+
+  setMultiplayerPlayerId: (playerId: string) => {
+    set({ multiplayerPlayerId: playerId });
   },
 
   setMultiplayerEnabled: (enabled: boolean) => {

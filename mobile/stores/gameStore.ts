@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { websocketService } from '../services/websocket';
-import { opponentSocketService } from '../services/opponentSocket';
 import { ConcentrationSignal, GameStatus, GameResults } from '../types';
 import { gameConfig } from '../constants/theme';
 
@@ -139,28 +138,15 @@ const initialState: GameState = {
 };
 
 export const useGameStore = create<GameStore>((set, get) => {
-  // Set up opponent connection handler - set status to 'idle' when connected
-  opponentSocketService.onConnect(() => {
-    console.log('[GameStore] Opponent connected - setting status to idle');
-    set({ opponentStatus: 'idle' });
-  });
-
-  // Set up opponent position handler for multiplayer
-  opponentSocketService.onPosition((data) => {
+  websocketService.onOpponentPosition((data) => {
     console.log('[GameStore] Opponent position update:', data.position, data.status);
     set({
       opponentPosition: data.position,
-      opponentStatus: data.status,
+      opponentStatus: data.status as 'idle' | 'playing' | 'finished' | 'disconnected',
     });
   });
 
-  opponentSocketService.onDisconnect(() => {
-    console.log('[GameStore] Opponent disconnected');
-    set({ opponentStatus: 'disconnected', isOpponentReady: false });
-  });
-
-  // Set up opponent ready handler for multiplayer lobby
-  opponentSocketService.onReady((data) => {
+  websocketService.onOpponentReady((data) => {
     console.log('[GameStore] Opponent ready state:', data.ready);
     set({ isOpponentReady: data.ready });
   });

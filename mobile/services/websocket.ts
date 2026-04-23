@@ -14,6 +14,12 @@ const DEFAULT_SERVER_URL = `http://${computerIp}:3001`;
 type MessageHandler = (message: ServerMessage) => void;
 type ConnectionHandler = () => void;
 type ErrorHandler = (error: Error) => void;
+type OpponentPositionHandler = (data: {
+  position: number;
+  status: 'idle' | 'playing' | 'finished' | 'disconnected';
+  timestamp: number;
+}) => void;
+type OpponentReadyHandler = (data: { ready: boolean; timestamp: number }) => void;
 
 class WebSocketService {
   private socket: Socket | null = null;
@@ -22,6 +28,8 @@ class WebSocketService {
   private connectHandlers: Set<ConnectionHandler> = new Set();
   private disconnectHandlers: Set<ConnectionHandler> = new Set();
   private errorHandlers: Set<ErrorHandler> = new Set();
+  private opponentPositionHandlers: Set<OpponentPositionHandler> = new Set();
+  private opponentReadyHandlers: Set<OpponentReadyHandler> = new Set();
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
   private pingInterval: NodeJS.Timeout | null = null;
@@ -149,6 +157,16 @@ class WebSocketService {
     return () => this.errorHandlers.delete(handler);
   }
 
+  onOpponentPosition(handler: OpponentPositionHandler): () => void {
+    this.opponentPositionHandlers.add(handler);
+    return () => this.opponentPositionHandlers.delete(handler);
+  }
+
+  onOpponentReady(handler: OpponentReadyHandler): () => void {
+    this.opponentReadyHandlers.add(handler);
+    return () => this.opponentReadyHandlers.delete(handler);
+  }
+
   /**
    * Get the current server URL
    */
@@ -197,8 +215,19 @@ class WebSocketService {
     });
 
     this.socket.on('eeg_data', (payload: { data: number[], alpha_power?: number, beta_power?: number }) => {
-      const serverMsg = { type: 'eeg_data', payload } as ServerMessage;
+      const serverMsg = { type: 'eeg_data', payload } as unknown as ServerMessage;
       this.messageHandlers.forEach((handler) => handler(serverMsg));
+    });
+
+    this.socket.on(
+      'opponent_position',
+      (data: { position: number; status: 'idle' | 'playing' | 'finished' | 'disconnected'; timestamp: number }) => {
+        this.opponentPositionHandlers.forEach((handler) => handler(data));
+      }
+    );
+
+    this.socket.on('opponent_ready', (data: { ready: boolean; timestamp: number }) => {
+      this.opponentReadyHandlers.forEach((handler) => handler(data));
     });
   }
 

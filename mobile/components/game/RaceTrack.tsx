@@ -10,6 +10,8 @@ interface RaceTrackProps {
   carPosition: number; // 0-100 percentage
   isConcentrated: boolean;
   opponentPosition?: number; // 0-100 percentage (optional for multiplayer)
+  /** When false, opponent lane is dimmed (e.g. disconnected from multiplayer server). */
+  opponentConnected?: boolean;
   showOpponent?: boolean;
   trackWidth?: number;
   trackHeight?: number;
@@ -19,6 +21,7 @@ export function RaceTrack({
   carPosition,
   isConcentrated,
   opponentPosition = 0,
+  opponentConnected = true,
   showOpponent = false,
   trackWidth = SCREEN_WIDTH - 48,
   trackHeight = 120,  // Increased height for two cars
@@ -125,22 +128,7 @@ export function RaceTrack({
         {/* Cars on track */}
         {showOpponent ? (
           <>
-            {/* Opponent car (top lane) */}
-            <View style={styles.opponentLaneContainer}>
-              <View style={styles.carLabelContainer}>
-                <Text style={[styles.carLabel, styles.opponentLabel]}>Opponent</Text>
-              </View>
-              <View style={styles.opponentCarContainer}>
-                <Car
-                  position={opponentPosition}
-                  isConcentrated={false}
-                  color={colors.opponentCar}
-                  size={45}
-                />
-              </View>
-            </View>
-            
-            {/* Player car (bottom lane) */}
+            {/* Player car (top lane) */}
             <View style={styles.playerLaneContainer}>
               <View style={styles.carLabelContainer}>
                 <Text style={[styles.carLabel, styles.playerLabel]}>You</Text>
@@ -150,6 +138,28 @@ export function RaceTrack({
                   position={carPosition}
                   isConcentrated={isConcentrated}
                   color={colors.playerCar}
+                  size={45}
+                />
+              </View>
+            </View>
+
+            {/* Opponent car (bottom lane) — position from shared multiplayer server */}
+            <View
+              style={[
+                styles.opponentLaneContainer,
+                !opponentConnected && styles.opponentLaneDisconnected,
+              ]}
+            >
+              <View style={styles.carLabelContainer}>
+                <Text style={[styles.carLabel, styles.opponentLabel]}>
+                  {opponentConnected ? 'Opponent' : 'Opponent (offline)'}
+                </Text>
+              </View>
+              <View style={styles.opponentCarContainer}>
+                <Car
+                  position={opponentPosition}
+                  isConcentrated={false}
+                  color={colors.opponentCar}
                   size={45}
                 />
               </View>
@@ -210,19 +220,22 @@ const styles = StyleSheet.create({
     right: 25,
     transform: [{ translateY: -18 }],
   },
-  opponentLaneContainer: {
+  playerLaneContainer: {
     position: 'absolute',
     top: 8,
     left: 0,
     right: 0,
     height: '45%',
   },
-  playerLaneContainer: {
+  opponentLaneContainer: {
     position: 'absolute',
     bottom: 8,
     left: 0,
     right: 0,
     height: '45%',
+  },
+  opponentLaneDisconnected: {
+    opacity: 0.5,
   },
   carLabelContainer: {
     position: 'absolute',
