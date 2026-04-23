@@ -106,29 +106,16 @@ React.useEffect(() => {
         </View>
       )}
 
-    <SafeAreaView edges={['top']} style={styles.header}>
-    <View style={styles.headerRow}>
-        <Pressable 
-        onPress={() => router.back()} 
-        style={({ pressed }) => [
-            styles.backBtn,
-            pressed && styles.backBtnPressed,
-        ]}
-        >
-        <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>NeuroJack</Text>
-        <View style={styles.headerRight} />
-    </View>
-    </SafeAreaView>
-
+      {/* No header — NeuroJack HTML has its own */}
       {Platform.OS === 'web' ? (
         // @ts-ignore
         <iframe
           src={NEUROJACK_URL}
           style={{
-            flex: 1, width: '100%',
-            height: '100%', border: 'none', marginTop: 60,
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            display: 'block',
           }}
           allow="camera; microphone"
         />
@@ -246,35 +233,35 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm, color: colors.textMuted,
   },
   header: {
-  backgroundColor: colors.background,
-  borderBottomWidth: 1,
-  borderBottomColor: colors.surfaceLight,
-},
-headerRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingHorizontal: spacing.lg,
-  paddingVertical: spacing.md,
-},
-backBtn: {
-  width: 44,
-  height: 44,
-  borderRadius: 22,
-  backgroundColor: colors.surface,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-backBtnPressed: {
-  backgroundColor: colors.surfaceLight,
-},
-headerTitle: {
-  fontSize: 18,
-  fontWeight: '700' as const,
-  color: colors.text,
-  letterSpacing: 2,
-},
-headerRight: {
-  width: 44, // balances the back button so title stays centered
-},
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceLight,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backBtnPressed: {
+    backgroundColor: colors.surfaceLight,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: colors.text,
+    letterSpacing: 2,
+  },
+  headerRight: {
+    width: 44, // balances the back button so title stays centered
+  },
 });
