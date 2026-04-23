@@ -64,7 +64,7 @@ export function GameHUD({
       {/* Stats row */}
       <View style={styles.statsRow}>
         <View style={styles.miniStat}>
-          <Ionicons name="flash" size={16} color={colors.secondary} />
+          <Ionicons name="flash" size={16} color={colors.neonCyan} />
           <Text style={styles.miniStatValue}>{totalAdvances}</Text>
           <Text style={styles.miniStatLabel}>advances</Text>
         </View>
@@ -84,14 +84,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.hudGlass,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     minWidth: 140,
+    borderWidth: 1,
+    borderColor: colors.hudGlassBorder,
   },
   statLabel: {
     fontSize: typography.fontSizes.xs,
-    color: colors.textSecondary,
+    color: colors.neonCyan,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: spacing.xs,
@@ -101,19 +103,22 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.bold,
     color: colors.text,
     fontVariant: ['tabular-nums'],
+    textShadowColor: colors.neonCyan,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
   pauseButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.hudGlass,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.surfaceLight,
+    borderColor: colors.neonMagenta,
   },
   pauseButtonPressed: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: 'rgba(232, 121, 249, 0.18)',
     transform: [{ scale: 0.95 }],
   },
   progressContainer: {
@@ -123,15 +128,21 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     flex: 1,
-    height: 8,
-    backgroundColor: colors.surface,
+    height: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     borderRadius: borderRadius.full,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.hudGlassBorder,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.neonCyan,
     borderRadius: borderRadius.full,
+    shadowColor: colors.neonCyan,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 8,
   },
   progressText: {
     fontSize: typography.fontSizes.sm,
@@ -149,10 +160,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.hudGlass,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.hudGlassBorder,
   },
   miniStatValue: {
     fontSize: typography.fontSizes.md,

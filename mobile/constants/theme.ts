@@ -37,8 +37,29 @@ export const colors = {
   trackBorder: '#475569',
   
   // Car colors
-  playerCar: '#3B82F6',
+  playerCar: '#38BDF8',
   opponentCar: '#F97316',
+
+  // Desert racing scene + neon UI accents
+  sceneSkyTop: '#0a0518',
+  sceneSkyMid: '#2d1b69',
+  sceneHorizon: '#ea580c',
+  sceneGlow: '#f97316',
+  sceneSun: '#fde047',
+  sceneStar: '#e9d5ff',
+  sceneDuneFar: '#1a0f18',
+  sceneDuneMid: '#3d2438',
+  sceneDuneNear: '#5c3440',
+  sceneSand: '#7c4a3a',
+  sceneRoad: '#141016',
+  sceneRoadTop: '#1f1824',
+  sceneRoadMark: 'rgba(248, 250, 252, 0.85)',
+  sceneRoadEdge: '#334155',
+  neonCyan: '#22d3ee',
+  neonMagenta: '#e879f9',
+  neonRing: 'rgba(34, 211, 238, 0.45)',
+  hudGlass: 'rgba(30, 27, 40, 0.72)',
+  hudGlassBorder: 'rgba(34, 211, 238, 0.35)',
 };
 
 // Typography

@@ -122,7 +122,7 @@ function StreakDot({ filled, index, isLatest }: StreakDotProps) {
         },
       ],
       borderColor: withSpring(
-        filled ? colors.concentratedLight : colors.trackBorder,
+        filled ? colors.neonCyan : colors.hudGlassBorder,
         { damping: 20, stiffness: 200 }
       ),
     };
@@ -151,10 +151,10 @@ const styles = StyleSheet.create({
   },
   streakLabel: {
     fontSize: typography.fontSizes.sm,
-    color: colors.textSecondary,
+    color: colors.neonMagenta,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -185,15 +185,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
     marginBottom: spacing.sm,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 8,
+    borderWidth: 2,
+    borderColor: colors.neonRing,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 16,
+    elevation: 10,
   },
   statusText: {
     fontSize: typography.fontSizes.xl,
     fontWeight: typography.fontWeights.bold,
     color: colors.text,
-    letterSpacing: 2,
+    letterSpacing: 3,
+    textShadowColor: 'rgba(34, 211, 238, 0.45)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   hintText: {
     fontSize: typography.fontSizes.sm,
